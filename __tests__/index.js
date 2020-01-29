@@ -21,6 +21,14 @@ it("should define a composable structure", async () => {
   expect(res).toEqual([1, 2, [3]]);
 });
 
+it("should not be possible to append new middleware after invoking a function", () => {
+  const app = compose()
+    .use(handle => handle('*', () => true));
+  expect(app()).toBeTruthy();
+  expect(() => app.use(handle => handle('*', () => true)))
+    .toThrow();
+});
+
 it("should export an argument filtering/indexing interface", async () => {
   const app = compose({ sync: false })
     .use(addTwo(), addTwo())
@@ -75,6 +83,18 @@ it("should permit middleware to retain state between executions", async () => {
   const result5 = await app5(500, 100);
 
   expect(result5).toEqual(500);
+});
+
+it("should allow you to define custom matcher functions", () => {
+  const customMatcher = input => (input === 'secret');
+  const app = compose()
+    .use(
+      handle => handle(customMatcher, () => true),
+    );
+
+  expect(() => app('hello'))
+    .toThrow();
+  expect(app('secret')).toBeTruthy();
 });
 
 it("should be capable of executing the example code", () => {

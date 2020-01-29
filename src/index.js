@@ -1,18 +1,15 @@
 import { typeCheck } from "type-check";
 
 // XXX: Defines that we've encountered a handler; this is a layer which contains only handlers.
-// TODO: Need to enforce that we disallow empty handlers.
 const isArrayOfHandlers = e =>
   Array.isArray(e) &&
   e.length > 0 &&
   e.reduce(
-    // TODO: Need to enforce function for typeCheck.
     (r, f) =>
       !!r && typeCheck("{matches:String|Function,handler:Function,state:*}", f),
     true
   );
 
-// So, it's the **contents of the child array** that defines the rules of propagation.
 const recurseUse = (e, parent = []) => {
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
@@ -33,17 +30,20 @@ const recurseUse = (e, parent = []) => {
 const findHandlerByMatches = (data, [...handlers]) =>
   handlers.reduce((handler, current) => {
     if (!handler) {
-      // TODO: Currently we only permit String based handlers.
       if (typeCheck("String", current.matches)) {
         if (typeCheck(current.matches, data)) {
           return current;
         }
-        //throw new Error(`Could not find a valid matcher for ${data}.`);
+      } else if (typeCheck("Function", current.matches)) {
+        const result = current.matches(data);
+        if (result === true || result === false) {
+          if (result) {
+            return current;
+          }
+          return handler;
+        }
+        throw new Error("A matcher function may only return a boolean result.");
       }
-      //// TODO: Later elevate to regexp.
-      //throw new Error(
-      //  `A matcher must be either a string or a function, encountered ${current.matches}.`
-      //);
     }
     return handler;
   }, null);
@@ -65,7 +65,6 @@ const recurseApply = (data, stage) =>
       if (handler) {
         return (
           Promise.resolve()
-            // TODO: Should freeze result somehow
             .then(() => handler.handler(data, handler.state))
             .then(result => (handler.state = freeze(result)))
         );
