@@ -1,4 +1,5 @@
 import { typeCheck } from "type-check";
+import jsonpath from 'jsonpath';
 
 // XXX: Defines that we've encountered a handler; this is a layer which contains only handlers.
 const isArrayOfHandlers = e =>
@@ -10,6 +11,8 @@ const isArrayOfHandlers = e =>
     true
   );
 
+const regExpToPath = e => e.toString().replace(/^\/|\/$/g, '');
+
 const recurseUse = (e, parent = []) => {
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
@@ -18,7 +21,11 @@ const recurseUse = (e, parent = []) => {
   const handlers = [];
   const handle = (matches, handler) =>
     handlers.push({ matches, handler, state: undefined });
-  e(handle);
+  if (typeCheck('Function', e)) {
+    e(handle);
+  } else if (typeCheck('RegExp{source:String}', e)) {
+    handle(input => (!!input && typeof input === 'object'), obj => jsonpath.query(obj, regExpToPath(e)));
+  }
   if (handlers.length === 0) {
     throw new Error(
       "A call to use() must define a minimum of a single handler."
@@ -91,6 +98,9 @@ const recurseApply = (data, stage) =>
           stage.length > 1 && results.length > 1 ? results : results[0]
       );
     }
+
+    console.log(stage, data);
+
     return Promise.reject(`A handler for ${data} could not be found.`);
   });
 

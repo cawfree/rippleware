@@ -99,6 +99,24 @@ it("should propagate scalar values in a common-sense way", () => {
   expect(app(1)).toEqual(3);
 });
 
+it("should be possible to use regular expressions to index objects", () => {
+
+  const reviews = [
+    { t: 'Hello', s: 0 },
+    { t: 'Goodbye', s: 1 },
+    { t: 'Hello2', s: 0.1 },
+    { t: 'Goodbye2', s: 0.9 },
+  ];
+
+  const app = compose()
+    .use(/$.*.t/);
+
+  const result = app(reviews);
+
+  expect(result)
+    .toEqual([ 'Hello', 'Goodbye', 'Hello2', 'Goodbye2' ]);
+});
+
 it("should be capable of executing the example code", () => {
   const app = compose().use(handle => handle("*", () => "Hello, world!"));
 

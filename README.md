@@ -61,7 +61,7 @@ If you'd prefer, you can opt out of synchronous behaviour by passing `{ sync: fa
 
 ### 2. Routing
 
-You can make multiple calls to `handle` within a single middleware; these define the different operations that can be performed based upon the shape of the input data.
+You can make multiple calls to `handle` within a single middleware; these define the different operations that can be performed based upon the shape of the input data. Since each handler is compared against in the order they were defined, care should be taken to ensure that multiple handler allocations should use increasingly generalized checkers.
 
 ```javascript
 import compose from 'rippleware';
@@ -90,6 +90,8 @@ const app = compose()
   );
 ```
 
+If a valid route is not found, the incompatible `.use()` stage will throw and prevent subsequent stages from being executed for the active invocation.
+
 ### 3. Indexing
 
 It is also possible to define a specific interest in processing and returning only a subset of return data.
@@ -102,7 +104,7 @@ const addOneToANumber = () => handle => handle("Number", n => n + 1);
 const app = compose()
   .use([addOneToANumber()]);
   
-console.log(app3([2])); // 3
+console.log(app([2])); // 3
 ```
 
 Notice that we pass an array `[2]` into our `app`, but because we use indexing on the middleware definition, it only operates on the first element of the input data. This is how we retrieve a scalar result.
