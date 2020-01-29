@@ -1,6 +1,9 @@
 # rippleware
 A middleware-inspired toolbox which enables you to design fully customizable functions.
 
+<a href="#badge">
+    <img alt="code style: prettier" src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square"></a>
+
 #### 🌠 tl;dr
 It's like a [Factory Pattern](https://www.dofactory.com/javascript/factory-method-design-pattern) for arbitrary sequences of data manipulation. You can think of it like [express](https://www.npmjs.com/package/express) for computation.
 
@@ -110,3 +113,9 @@ This is an active project, and your contributes are welcome! Before submitting a
 
 ## ✌️ License
 [MIT](https://opensource.org/licenses/MIT)
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/cawfree">
+    <img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy @cawfree a coffee" width="232" height="50" />
+  </a>
+</p>
