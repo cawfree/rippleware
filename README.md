@@ -78,6 +78,18 @@ console.log(app('This is a string.')) // "You passed a string!"
 console.log(app({ life: 42 })) // "You didn't pass a string!"
 ```
 
+You don't have to define routes just based on strict type checking. You can just as easily define a **matcher function**:
+
+```javascript
+const app = compose()
+  .use(
+    (handle) => {
+      handle(input => (typeof input === 'string'), () => "You passed a string!");
+      handle(input => (typeof input !== 'string'), () => "You didn't pass a string!");
+    },
+  );
+```
+
 ### 3. Indexing
 
 It is also possible to define a specific interest in processing and returning only a subset of return data.
