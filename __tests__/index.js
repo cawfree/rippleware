@@ -4,9 +4,20 @@ import compose from '../src';
 
 const addTwo = () => handle => handle(
   '[Number]', (next, last) => {
-    console.log('next state is',next, 'last state was ',last);
     return next.map(e => (e + 2));
   },
+);
+
+const returnAConstant = () => handle => handle(
+  '*', (next, last) => [
+    1,
+    2,
+    [3],
+  ],
+);
+
+const somethingThatAddsOneToAScalar = () => handle => handle(
+  'Number', (next, last) => (next + 1),
 );
 
 //const somethingThatHandlesAll = () => handle => {
@@ -47,34 +58,18 @@ const addTwo = () => handle => handle(
 it('should export an argument filtering interface', async () => {
 
   const app = compose()
-    // each handler deserves dedicated state, if it hasn't been executed, it cant get, it is entirely different data, too difficult, just share state
-    //.use(somethingThatHandlesAll())
-    //.use(somethingThatHandlesAllMulti())
-    //.use(
-    //  // XXX: as a whole, without indexing
-    //  somethingThatHandlesTheFirstElement(), //give me the first element
-    //  somethingThatHandlesTheSecondElement(), // give me the second element
-    //)
+    .use(addTwo(), addTwo())
+    .use(addTwo(), addTwo())
+    .use(returnAConstant())
     .use(
-      addTwo(),
-      addTwo(),
-      //somethingThatHandlesAll(),
-      // XXX: this is first index of first element
-      //[somethingThatHandlesAll(), somethingThatHandlesAll()],
-      //[somethingThatHandlesAll()],
-    )
-    .use(
-      addTwo(),
-      addTwo(),
+      [somethingThatAddsOneToAScalar()],
+      [somethingThatAddsOneToAScalar()],
+      [[somethingThatAddsOneToAScalar()]],
     );
-    //.use(
-    //  [somethingThatHandlesTheFirstIndex(), somethingThatHandlesTheSecondIndex()],
-    //  [somethingThatHandlesTheFirstIndex(), [somethingThatHandlesTheSecondIndexFirstIndex()]],
-    //);
 
   const result = await app([2], [2]);
-  const result2 = await app([2], [2]);
-  console.log(result);
+  //const result2 = await app([2], [2]);
+  console.log(JSON.stringify(result));
   //await app(4);
 
   expect(true).toBeTruthy();

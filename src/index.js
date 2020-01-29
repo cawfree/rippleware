@@ -72,7 +72,6 @@ const recurseApply = (data, stage) => Promise
           .all(
             stage.map(
               (s, i) => {
-                console.log(s);
                 if (isArrayOfHandlers(s)) {
                   const datum = data[i];
                   const handler = findHandlerByMatches(datum, s);
@@ -81,16 +80,9 @@ const recurseApply = (data, stage) => Promise
                     .then(
                       () => handler.handler(datum, handler.state)
                     )
-                    .then(result => (handler.state = freeze(result)))
-                    .then(
-                      (d) => {
-                        console.log('result is ',d,'handler state is ',handler.state);
-                        return d;
-                      },
-                    );
-                  return Promise.resolve();
+                    .then(result => (handler.state = freeze(result)));
                 }
-                return Promise.reject('do not know');
+                return recurseApply(data[i], s);
               },
             ),
           );
@@ -99,27 +91,6 @@ const recurseApply = (data, stage) => Promise
     },
   );
 
-//// TODO: should write to stage
-//const recurseApply = (data, stage) => Promise
-//  .resolve()
-//  .then(
-//    () => {
-//      if (Array.isArray(stage)) {
-//        if (!isArrayOfHandlers(stage)) {
-//          //console.log(stage,'is not a handler', stage.length);
-//          stage.map(
-//            e => recurseApply(data, e),
-//          );
-//          return;
-//        } else {
-//          console.log('got one!', stage);
-//          return;
-//        }
-//      }
-//      throw new Error('Do not know how to handle!');
-//    },
-//  );
-
 export default () => {
   const mwr = [];
   function r(...input) {
@@ -127,30 +98,7 @@ export default () => {
     return mwr
       .reduce(
         (p, stage, i) => p
-          .then(
-            (dataFromLastStage) => recurseApply(dataFromLastStage, stage),
-              //if (Array.isArray(stage)) {
-              //  //// The data must match the given dimensions.
-              //  //if (dataFromLastStage.length >= stage.length) {
-
-              //  //}
-              //  //return Promise.reject(new Error(''));
-              //  //console.log(stage);
-              //  //throw 'do not know';
-              //}
-              //const { matches, handler, state } = stage;
-              //if (typeCheck('String', matches)) {
-              //  if (typeCheck(matches, dataFromLastStage)) {
-              //    return Promise
-              //      .resolve()
-              //      .then(() => handler(dataFromLastStage, state))
-              //      .then(data => (stage.state = data))
-              //  }
-              //  return Promise.reject(new Error('No matches found for input data.'));
-              //}
-              //return Promise.reject(`Encountered unsupported handler. ${matches}`);
-            //},
-          ),
+          .then(dataFromLastStage => recurseApply(dataFromLastStage, stage)),
         Promise
           .resolve(input),
       );
@@ -159,17 +107,11 @@ export default () => {
       throw new Error('It is not possible to make a call to use() after function execution.');
     };
   };
-  // okay, let's define some inputs
   r.use = (...args) => {
     if (args.length === 0) {
       throw new Error('A call to use() must specify at least a single handler.');
     }
-    //} else if (args.length === 1) {
-    //  const [arg] = args;
-    //  mwr.push(recurseUse(arg));
-    //} else {
-      mwr.push(recurseUse(args));
-    //}
+    mwr.push(recurseUse(args));
     return r;
   };
   return r;
