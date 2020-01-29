@@ -75,7 +75,7 @@ const app = compose()
   );
 
 console.log(app('This is a string.')) // "You passed a string!"
-console.log({ life: 42 }) // "You didn't pass a string!"
+console.log(app({ life: 42 })) // "You didn't pass a string!"
 ```
 
 ### 3. Indexing
@@ -84,6 +84,8 @@ It is also possible to define a specific interest in processing and returning on
 
 ```javascript
 import compose from 'rippleware';
+
+const addOneToANumber = () => handle => handle("Number", n => n + 1);
 
 const app = compose()
   .use([addOneToANumber()]);
