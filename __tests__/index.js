@@ -95,4 +95,16 @@ it("should be capable of executing the example code", () => {
   const app3 = compose().use([addOneToANumber()]);
 
   expect(app3([2])).toEqual(3);
+
+  const app4 = compose().use(handle =>
+    handle("*", (next, last) => last || next)
+  );
+
+  expect(app4("The only value this will ever return.")).toEqual(
+    "The only value this will ever return."
+  );
+
+  expect(app4("Some other value")).toEqual(
+    "The only value this will ever return."
+  );
 });

@@ -96,7 +96,10 @@ Finally, it's possible to use state inside of your middleware functions. This ca
 import compose from 'rippleware';
 
 const app = compose()
-  .use(handle => handle('*', (next, last) => (last || next));
+    .use(handle => handle('*', (next, last) => (last || next)));
+
+app('The only value this will ever return.'); // "The only value this will ever return."
+app('Some other value')); // "The only value this will ever return."
 ```
 
 At the first execution of your middleware, the value of `last` will be `undefined`. For all subsequent executions, the value of `last` will be equal to whatever your middleware returned the last time it was called. In addition, `last` is [immutable](https://medium.zenika.com/immutability-in-javascript-7e1a19b45615) to prevent misuse.
