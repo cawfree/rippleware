@@ -123,7 +123,10 @@ export default (options = { sync: true }) => {
 
       new Promise(resolve =>
         Promise.resolve()
-          .then(() => executeMiddleware(mwr, input))
+          // Here, if the user has only passed a single argument, we'll remove the surrounding array.
+          .then(() =>
+            executeMiddleware(mwr, input.length === 1 ? input[0] : input)
+          )
           .then(data => resolve(Object.assign(result, { data, done: true })))
           .catch(error => resolve(Object.assign(result, { error, done: true })))
       );

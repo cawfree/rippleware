@@ -75,7 +75,37 @@ console.log(app('This is a string.')) // "You passed a string!"
 console.log({ life: 42 }) // "You didn't pass a string!"
 ```
 
-## Contributing
+### 3. Indexing
 
-## License
+It is also possible to define a specific interest in processing and returning only a subset of return data.
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use([addOneToANumber()]);
+  
+console.log(app3([2])); // 3
+```
+
+Notice that we pass an array `[2]` into our `app`, but because we use indexing on the middleware definition, it only operates on the first element of the input data. This is how we retrieve a scalar result.
+
+### 4. State
+
+Finally, it's possible to use state inside of your middleware functions. This can be used for a number of different applications, most commonly caching. In the example below, we will always try to return the first result of execution, if it is exists. 
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use(handle => handle('*', (next, last) => (last || next));
+```
+
+At the first execution of your middleware, the value of `last` will be `undefined`. For all subsequent executions, the value of `last` will be equal to whatever your middleware returned the last time it was called. In addition, `last` is [immutable](https://medium.zenika.com/immutability-in-javascript-7e1a19b45615) to prevent misuse.
+
+## 😎 Contributing
+
+This is an active project, and your contributes are welcome! Before submitting any [Pull Requests](https://github.com/cawfree/rippleware/pulls), please ensure all existing unit tests pass with a call to `yarn jest`.
+
+## ✌️ License
 [MIT](https://opensource.org/licenses/MIT)

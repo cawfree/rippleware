@@ -77,31 +77,22 @@ it("should permit middleware to retain state between executions", async () => {
   expect(result5).toEqual(500);
 });
 
-it("should be possible to execute asynchronous applications as if they were sequential", () => {
-  expect(() => compose(2)).toThrow();
-  expect(() => compose({ sync: 2 })).toThrow();
-
-  const app = compose().use(addTwo());
-
-  const result = app(2);
-
-  expect(result).toEqual([4]);
-
-  const app2 = compose().use([addTwo()]);
-
-  expect(() => app2(2)).toThrow();
-});
-
 it("should be capable of executing the example code", () => {
   const app = compose().use(handle => handle("*", () => "Hello, world!"));
 
   expect(app()).toEqual("Hello, world!");
 
   const app2 = compose().use(handle => {
-    handle("[String]", () => "You passed a string!");
+    handle("String", () => "You passed a string!");
     handle("*", () => "You didn't pass a string!");
   });
 
   expect(app2("This is a string.")).toEqual("You passed a string!");
   expect(app2({ life: 42 })).toEqual("You didn't pass a string!");
+
+  const addOneToANumber = () => handle => handle("Number", n => n + 1);
+
+  const app3 = compose().use([addOneToANumber()]);
+
+  expect(app3([2])).toEqual(3);
 });
