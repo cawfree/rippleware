@@ -9,15 +9,15 @@ It's like a [Factory Pattern](https://www.dofactory.com/javascript/factory-metho
 
 ## 🔥 Features
   - Deeply configurable, user-extensible function definitions.
-    - Design endlessly configurable, arbitrarily long sequences of data manipulation.
+    - Design arbitrarily long sequences of data manipulation.
     - Define multiple routes based on [`type-check`](https://www.npmjs.com/package/type-check) rigorous declaration syntax.
   - Optional persistent middleware state.
     - You can cache and respond to middleware results from previous executions.
   - Synchronous execution, independent of middleware asynchrony. (yes, _really_)
-    - If you're tired of `async`/`await` or `.then()`, you [don't have to use it at all](https://www.npmjs.com/package/deasync).
+    - If you're tired of `async`/`await` or `.then()`, you [don't have to use them at all](https://www.npmjs.com/package/deasync).
   - A friendly interface. 👋
-    - If you know [middleware](https://expressjs.com/en/guide/writing-middleware.html), you know rippleware.
-    - Intuitive result indexing enables simple operation on deeply-nested propagated data.
+    - If you know [middleware](https://expressjs.com/en/guide/writing-middleware.html), then you know rippleware.
+    - Intuitive indexing enables simple operation on deeply-nested propagated data.
 
 ## 🚀 Getting Started
 
@@ -37,13 +37,15 @@ yarn add rippleware
 
 ### 1. Hello, world!
 
-The only entity that is exported from ripple was `compose`, which we can `use()` to define each step in our function:
+The only entity that is exported from rippleware is `compose`, which we can `use()` to define each step in our function:
 
 ```javascript
 import compose from 'rippleware';
 
 const app = compose()
   .use(handle => handle('*', () => "Hello, world!")); // handle('*', () => Promise.resolve("Hello, world!")) would behave identically
+  
+  //.use().use().use()...
 
 console.log(app()); // "Hello, world!"
 ```
