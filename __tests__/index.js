@@ -97,6 +97,15 @@ it("should allow you to define custom matcher functions", () => {
   expect(app('secret')).toBeTruthy();
 });
 
+it("should propagate scalar values in a common-sense way", () => {
+  const app = compose()
+    .use(handle => handle('Number', n => n + 1))
+    .use(handle => handle('Number', n => n + 1));
+
+  expect(app(1))
+    .toEqual(3);
+});
+
 it("should be capable of executing the example code", () => {
   const app = compose().use(handle => handle("*", () => "Hello, world!"));
 
