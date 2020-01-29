@@ -85,27 +85,59 @@ const recurseApply = (data, stage) => Promise
                 return recurseApply(data[i], s);
               },
             ),
+          )
+          .then(
+            // Otherwise, index the results.
+            (results) => (stage.length > 1 && results.length > 1) ? results : results[0],
           );
       }
       return Promise.reject(`A handler for ${data} could not be found.`);
     },
   );
 
-export default () => {
+const executeMiddleware = (mwr, input) => mwr
+  .reduce(
+    (p, stage, i) => p
+      .then(dataFromLastStage => recurseApply(dataFromLastStage, stage)),
+    Promise
+      .resolve(input),
+  );
+
+export default (options = { sync: false }) => {
+  if (!typeCheck('{sync:Boolean}|Undefined', options)) {
+    throw new Error('Invalid options.');
+  }
   const mwr = [];
+  const { sync } = options;
   function r(...input) {
-    // XXX: Execute the input in stages.
-    return mwr
-      .reduce(
-        (p, stage, i) => p
-          .then(dataFromLastStage => recurseApply(dataFromLastStage, stage)),
-        Promise
-          .resolve(input),
-      );
     // TODO: Enforce this (check@test).
     r.use = () => {
       throw new Error('It is not possible to make a call to use() after function execution.');
     };
+    if (sync) {
+      const { loopWhile } = require('deasync');
+      const result = { error: undefined, data: undefined, done: false };
+
+      new Promise(
+        resolve  => Promise
+          .resolve()
+          .then(() => executeMiddleware(mwr, input))
+          .then(data => resolve(Object.assign(result, { data, done: true })))
+          .catch(error => resolve(Object.assign(result, { error, done: true }))),
+      );
+
+      loopWhile(() => !result.done);
+
+      const { error, data } = result;
+
+      if (error) {
+        throw new Error(error);
+      }
+
+      return data;
+    }
+    // XXX: Execute the input in stages.
+    return executeMiddleware(mwr, input);
   };
   r.use = (...args) => {
     if (args.length === 0) {
