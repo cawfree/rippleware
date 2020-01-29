@@ -11,7 +11,11 @@
     "rippleware",
     "middleware",
     "extensible",
-    "functions"
+    "functions",
+    "function",
+    "factory",
+    "builder",
+    "pattern"
   ],
   "scripts": {
     "build": "babel src --out-dir dist && uglifyjs dist/*.js -o dist/*.js",
