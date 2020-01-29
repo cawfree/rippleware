@@ -22,11 +22,9 @@ it("should define a composable structure", async () => {
 });
 
 it("should not be possible to append new middleware after invoking a function", () => {
-  const app = compose()
-    .use(handle => handle('*', () => true));
+  const app = compose().use(handle => handle("*", () => true));
   expect(app()).toBeTruthy();
-  expect(() => app.use(handle => handle('*', () => true)))
-    .toThrow();
+  expect(() => app.use(handle => handle("*", () => true))).toThrow();
 });
 
 it("should export an argument filtering/indexing interface", async () => {
@@ -86,24 +84,19 @@ it("should permit middleware to retain state between executions", async () => {
 });
 
 it("should allow you to define custom matcher functions", () => {
-  const customMatcher = input => (input === 'secret');
-  const app = compose()
-    .use(
-      handle => handle(customMatcher, () => true),
-    );
+  const customMatcher = input => input === "secret";
+  const app = compose().use(handle => handle(customMatcher, () => true));
 
-  expect(() => app('hello'))
-    .toThrow();
-  expect(app('secret')).toBeTruthy();
+  expect(() => app("hello")).toThrow();
+  expect(app("secret")).toBeTruthy();
 });
 
 it("should propagate scalar values in a common-sense way", () => {
   const app = compose()
-    .use(handle => handle('Number', n => n + 1))
-    .use(handle => handle('Number', n => n + 1));
+    .use(handle => handle("Number", n => n + 1))
+    .use(handle => handle("Number", n => n + 1));
 
-  expect(app(1))
-    .toEqual(3);
+  expect(app(1)).toEqual(3);
 });
 
 it("should be capable of executing the example code", () => {

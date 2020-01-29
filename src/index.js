@@ -63,11 +63,9 @@ const recurseApply = (data, stage) =>
       const [...handlers] = stage[0];
       const handler = findHandlerByMatches(data, handlers);
       if (handler) {
-        return (
-          Promise.resolve()
-            .then(() => handler.handler(data, handler.state))
-            .then(result => (handler.state = freeze(result)))
-        );
+        return Promise.resolve()
+          .then(() => handler.handler(data, handler.state))
+          .then(result => (handler.state = freeze(result)));
       }
       return Promise.reject(`Could not find a valid matcher for ${data}.`);
     } else if (data.length >= stage.length) {
