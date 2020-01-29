@@ -49,9 +49,7 @@ Let's break this down. When make a call to use, we're expected to pass a `Functi
 
 It's important to note that your handler functions can operate _asynchronously_ via [`Promises`](https://developers.google.com/web/fundamentals/primers/promises) or [`async`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function)functions, the result will still return synchronously.
 
-===
-For a detailed look at the capabilities of routing strings, check out [type-check](https://www.npmjs.com/package/type-check).
-===
+> For a detailed look at the capabilities of routing strings, check out [type-check](https://www.npmjs.com/package/type-check).
 
 **Note**:
 If you'd prefer, you can opt out of synchronous behaviour by passing `{ sync: false }` to your call to `compose()`.
