@@ -54,23 +54,46 @@ const recurseApply = (data, stage) => Promise
   .resolve()
   .then(
     () => {
-      // XXX: Special case: consume the entire argument without destructuring
-      //      if we're using a single array handler.
-      if (stage.length === 1 && isArrayOfHandlers(stage[0])) {
+      if (!Array.isArray(stage) || stage.length === 0) {
+        return Promise.reject(new Error('A call to use() must define at least a single handler.'));
+      }
+      else if (stage.length === 1 && isArrayOfHandlers(stage[0])) {
+        // XXX: Special case: consume the entire argument without destructuring
+        //      if we're using a single array handler.
         const [...handlers] = stage[0];
         const handler = findHandlerByMatches(data, handlers);
-        if (handler) {
-          return Promise
-            .resolve()
-            // TODO: Should freeze result somehow
-            .then(() => handler.handler(data, handler.state))
-            .then(result => (handler.state = freeze(result)))
-            .then(
-              (e) => {
-                console.log('got result', e);
+        return Promise
+          .resolve()
+          // TODO: Should freeze result somehow
+          .then(() => handler.handler(data, handler.state))
+          .then(result => (handler.state = freeze(result)));
+      } else if (data.length >= stage.length) {
+        return Promise
+          .all(
+            stage.map(
+              (s, i) => {
+                console.log(s);
+                if (isArrayOfHandlers(s)) {
+                  const datum = data[i];
+                  const handler = findHandlerByMatches(datum, s);
+                  return Promise
+                    .resolve()
+                    .then(
+                      () => handler.handler(datum, handler.state)
+                    )
+                    .then(result => (handler.state = freeze(result)))
+                    .then(
+                      (d) => {
+                        console.log('result is ',d,'handler state is ',handler.state);
+                        return d;
+                      },
+                    );
+                  return Promise.resolve();
+                }
+                return Promise.reject('do not know');
               },
-            );
-        }
+            ),
+          );
       }
       return Promise.reject(`A handler for ${data} could not be found.`);
     },
@@ -100,7 +123,6 @@ const recurseApply = (data, stage) => Promise
 export default () => {
   const mwr = [];
   function r(...input) {
-    console.log(JSON.stringify(mwr));
     // XXX: Execute the input in stages.
     return mwr
       .reduce(

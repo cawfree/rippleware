@@ -4,7 +4,7 @@ import compose from '../src';
 
 const addTwo = () => handle => handle(
   '[Number]', (next, last) => {
-    console.log('last state was ',last);
+    console.log('next state is',next, 'last state was ',last);
     return next.map(e => (e + 2));
   },
 );
@@ -57,18 +57,25 @@ it('should export an argument filtering interface', async () => {
     //)
     .use(
       addTwo(),
+      addTwo(),
       //somethingThatHandlesAll(),
       // XXX: this is first index of first element
       //[somethingThatHandlesAll(), somethingThatHandlesAll()],
       //[somethingThatHandlesAll()],
     )
+    .use(
+      addTwo(),
+      addTwo(),
+    );
     //.use(
     //  [somethingThatHandlesTheFirstIndex(), somethingThatHandlesTheSecondIndex()],
     //  [somethingThatHandlesTheFirstIndex(), [somethingThatHandlesTheSecondIndexFirstIndex()]],
     //);
 
-  await app(2);
-  await app(4);
+  const result = await app([2], [2]);
+  const result2 = await app([2], [2]);
+  console.log(result);
+  //await app(4);
 
   expect(true).toBeTruthy();
 });
