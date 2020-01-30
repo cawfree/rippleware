@@ -165,7 +165,10 @@ export default (options = { sync: true }) => {
           throw new Error("Data mismatch error.");
         });
       }
-    } else if (typeCheck("[[RegExp{source:String}]]", args) || typeCheck("[[[RegExp{source:String}]]]", args)) {
+    } else if (
+      typeCheck("[[RegExp{source:String}]]", args) ||
+      typeCheck("[[[RegExp{source:String}]]]", args)
+    ) {
       if (args.length === 1) {
         const [arg] = args;
         mwr.push(input => arg.map(e => jsonpath.query(input, regExpToPath(e))));
