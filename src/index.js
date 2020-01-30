@@ -21,8 +21,6 @@ const recurseUse = (e, parent = []) => {
     return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
   } else if (typeCheck('Function', e)) {
     e(handle);
-  } else if (typeCheck('RegExp{source:String}', e)) {
-    handle(input => (!!input && typeof input === 'object'), obj => jsonpath.query(obj, regExpToPath(e)));
   }
   if (handlers.length === 0) {
     throw new Error(
@@ -58,7 +56,11 @@ const freeze = state =>
 
 const recurseApply = (data, stage) =>
   Promise.resolve().then(() => {
-    if (!Array.isArray(stage) || stage.length === 0) {
+    if (typeCheck('Function', stage)) {
+      return Promise
+        .resolve()
+        .then(() => stage(data));
+    } else if (!Array.isArray(stage) || stage.length === 0) {
       return Promise.reject(
         new Error("A call to use() must define at least a single handler.")
       );
@@ -154,8 +156,25 @@ export default (options = { sync: true }) => {
       throw new Error(
         "A call to use() must specify at least a single handler."
       );
+    } else if (typeCheck('[RegExp{source:String}]', args)) {
+      if (args.length === 1) {
+        const [arg] = args;
+        mwr.push(input => jsonpath.query(input, regExpToPath(arg)));
+      } else {
+        mwr.push(
+          (input) => {
+            if (Array.isArray(input) && input.length >= args.length) {
+              return args.map(
+                (e, i) => jsonpath.query(input[i], regExpToPath(e)),
+              );
+            }
+            throw new Error("Data mismatch error.");
+          }
+        );
+      }
+    } else {
+      mwr.push(recurseUse(args));
     }
-    mwr.push(recurseUse(args));
     return r;
   };
   return r;
