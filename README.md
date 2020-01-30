@@ -94,7 +94,9 @@ If a valid route is not found, the incompatible `.use()` stage will throw and pr
 
 ### 3. Indexing
 
-It is also possible to define a specific interest in processing and returning only a subset of return data.
+#### 3.1 Array Indexing
+
+It is possible to define a specific interest in processing and returning only a subset of returned array data.
 
 ```javascript
 import compose from 'rippleware';
@@ -108,6 +110,43 @@ console.log(app([2])); // 3
 ```
 
 Notice that we pass an array `[2]` into our `app`, but because we use indexing on the middleware definition, it only operates on the first element of the input data. This is how we retrieve a scalar result.
+
+
+#### 3.2 Object Indexing
+
+In addition, it's possible to filter specific properties of a given object buy supplying a [regular expression](https://www.w3schools.com/js/js_regexp.asp). The regular expression must be expressed in a form compatible with [`jsonpath`](https://www.npmjs.com/package/jsonpath).
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use(/$.*.t/);
+
+console.log(app([{t: 'hi'}, {t: 'bye'}])); // ['hi', 'bye']
+```
+
+In addition, you can apply these expressions to multiple arguments:
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use(/$.*.t/, /$.*.s/);
+
+
+console.log(app([{t: 'hi'}], [{s: 0}])); // [['hi'], [0]]
+```
+
+Alternatively, you can choose to aggregate multiple indexes over a single parameter:
+
+```javascript
+import compose from 'compose';
+
+const app = compose()
+  .use([/$.*.t/, /$.*.s/]);
+
+console.log(app([{t: 'hi', s: 0}, {t: 'bye', s: 1}])); // [['hi', 'bye'], [0, 1]]
+```
 
 ### 4. State
 

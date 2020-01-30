@@ -1,5 +1,5 @@
 import { typeCheck } from "type-check";
-import jsonpath from 'jsonpath';
+import jsonpath from "jsonpath";
 
 // XXX: Defines that we've encountered a handler; this is a layer which contains only handlers.
 const isArrayOfHandlers = e =>
@@ -11,7 +11,7 @@ const isArrayOfHandlers = e =>
     true
   );
 
-const regExpToPath = e => e.toString().replace(/^\/|\/$/g, '');
+const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
 const recurseUse = (e, parent = []) => {
   const handlers = [];
@@ -19,7 +19,7 @@ const recurseUse = (e, parent = []) => {
     handlers.push({ matches, handler, state: undefined });
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
-  } else if (typeCheck('Function', e)) {
+  } else if (typeCheck("Function", e)) {
     e(handle);
   }
   if (handlers.length === 0) {
@@ -56,10 +56,8 @@ const freeze = state =>
 
 const recurseApply = (data, stage) =>
   Promise.resolve().then(() => {
-    if (typeCheck('Function', stage)) {
-      return Promise
-        .resolve()
-        .then(() => stage(data));
+    if (typeCheck("Function", stage)) {
+      return Promise.resolve().then(() => stage(data));
     } else if (!Array.isArray(stage) || stage.length === 0) {
       return Promise.reject(
         new Error("A call to use() must define at least a single handler.")
@@ -98,9 +96,6 @@ const recurseApply = (data, stage) =>
           stage.length > 1 && results.length > 1 ? results : results[0]
       );
     }
-
-    console.log(stage, data);
-
     return Promise.reject(`A handler for ${data} could not be found.`);
   });
 
@@ -156,37 +151,33 @@ export default (options = { sync: true }) => {
       throw new Error(
         "A call to use() must specify at least a single handler."
       );
-    } else if (typeCheck('[RegExp{source:String}]', args)) {
+    } else if (typeCheck("[RegExp{source:String}]", args)) {
       if (args.length === 1) {
         const [arg] = args;
         mwr.push(input => jsonpath.query(input, regExpToPath(arg)));
       } else {
-        mwr.push(
-          (input) => {
-            if (Array.isArray(input) && input.length >= args.length) {
-              return args.map(
-                (e, i) => jsonpath.query(input[i], regExpToPath(e)),
-              );
-            }
-            throw new Error("Data mismatch error.");
+        mwr.push(input => {
+          if (Array.isArray(input) && input.length >= args.length) {
+            return args.map((e, i) =>
+              jsonpath.query(input[i], regExpToPath(e))
+            );
           }
-        );
+          throw new Error("Data mismatch error.");
+        });
       }
-    } else if (typeCheck('[[RegExp{source:String}]]', args)) {
+    } else if (typeCheck("[[RegExp{source:String}]]", args)) {
       if (args.length === 1) {
         const [arg] = args;
-        mwr.push(
-          (input) => {
-            return arg.map(
-              e => jsonpath.query(input, regExpToPath(e)),
-            );
-            console.log(input);
-            console.log(arg);
-            throw 'ici';
-          },
-        );
+        mwr.push(input => arg.map(e => jsonpath.query(input, regExpToPath(e))));
       } else {
-        throw 'do not know';
+        mwr.push(input => {
+          if (Array.isArray(input) && input.length >= args.length) {
+            return args.map((e, i) =>
+              e.map(f => jsonpath.query(input[i], regExpToPath(f)))
+            );
+          }
+          throw new Error("Data mismatch error.");
+        });
       }
     } else {
       mwr.push(recurseUse(args));

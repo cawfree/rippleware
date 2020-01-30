@@ -100,37 +100,51 @@ it("should propagate scalar values in a common-sense way", () => {
 });
 
 it("should be possible to use regular expressions to index objects", () => {
-
   const reviews = [
-    { t: 'Hello', s: 0 },
-    { t: 'Goodbye', s: 1 },
-    { t: 'Hello2', s: 0.1 },
-    { t: 'Goodbye2', s: 0.9 },
+    { t: "Hello", s: 0 },
+    { t: "Goodbye", s: 1 },
+    { t: "Hello2", s: 0.1 },
+    { t: "Goodbye2", s: 0.9 }
   ];
 
-  const app = compose()
-    .use(/$.*.t/);
+  const app = compose().use(/$.*.t/);
 
   const result = app(reviews);
 
-  expect(result)
-    .toEqual([ 'Hello', 'Goodbye', 'Hello2', 'Goodbye2' ]);
+  expect(result).toEqual(["Hello", "Goodbye", "Hello2", "Goodbye2"]);
 
-  const app2 = compose()
-    .use(/$.*.t/, /$.*.s/);
+  const app2 = compose().use(/$.*.t/, /$.*.s/);
 
   const result2 = app2(reviews, reviews);
 
-  expect(result2)
-    .toEqual([ [ 'Hello', 'Goodbye', 'Hello2', 'Goodbye2' ], [ 0, 1, 0.1, 0.9 ] ]);
+  expect(result2).toEqual([
+    ["Hello", "Goodbye", "Hello2", "Goodbye2"],
+    [0, 1, 0.1, 0.9]
+  ]);
 
-  const app3 = compose()
-    .use([/$.*.t/, /$.*.s/]);
-  
+  const app3 = compose().use([/$.*.t/, /$.*.s/]);
+
   const result3 = app3(reviews);
 
-  expect(result3)
-    .toEqual([ [ 'Hello', 'Goodbye', 'Hello2', 'Goodbye2' ], [ 0, 1, 0.1, 0.9 ] ]);
+  expect(result3).toEqual([
+    ["Hello", "Goodbye", "Hello2", "Goodbye2"],
+    [0, 1, 0.1, 0.9]
+  ]);
+
+  const app4 = compose().use([/$.*.t/, /$.*.s/], [/$.*.t/, /$.*.s/]);
+
+  const result4 = app4(reviews, reviews);
+
+  expect(result4).toEqual([
+    [
+      ["Hello", "Goodbye", "Hello2", "Goodbye2"],
+      [0, 1, 0.1, 0.9]
+    ],
+    [
+      ["Hello", "Goodbye", "Hello2", "Goodbye2"],
+      [0, 1, 0.1, 0.9]
+    ]
+  ]);
 });
 
 it("should be capable of executing the example code", () => {
@@ -163,4 +177,24 @@ it("should be capable of executing the example code", () => {
   expect(app4("Some other value")).toEqual(
     "The only value this will ever return."
   );
+
+  const app5 = compose().use(/$.*.t/);
+
+  expect(app5([{ t: "hi" }, { t: "bye" }])).toEqual(["hi", "bye"]);
+
+  const app6 = compose().use(/$.*.t/, /$.*.s/);
+
+  expect(app6([{ t: "hi" }], [{ s: 0 }])).toEqual([["hi"], [0]]);
+
+  const app7 = compose().use([/$.*.t/, /$.*.s/]);
+
+  expect(
+    app7([
+      { t: "hi", s: 0 },
+      { t: "bye", s: 1 }
+    ])
+  ).toEqual([
+    ["hi", "bye"],
+    [0, 1]
+  ]);
 });
