@@ -14,14 +14,12 @@ const isArrayOfHandlers = e =>
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, '');
 
 const recurseUse = (e, parent = []) => {
-  if (Array.isArray(e)) {
-    return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
-  }
-
   const handlers = [];
   const handle = (matches, handler) =>
     handlers.push({ matches, handler, state: undefined });
-  if (typeCheck('Function', e)) {
+  if (Array.isArray(e)) {
+    return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
+  } else if (typeCheck('Function', e)) {
     e(handle);
   } else if (typeCheck('RegExp{source:String}', e)) {
     handle(input => (!!input && typeof input === 'object'), obj => jsonpath.query(obj, regExpToPath(e)));
