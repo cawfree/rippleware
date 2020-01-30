@@ -114,7 +114,7 @@ Notice that we pass an array `[2]` into our `app`, but because we use indexing o
 
 #### 3.2 Object Indexing
 
-In addition, it's possible to filter specific properties of a given object buy supplying a [regular expression](https://www.w3schools.com/js/js_regexp.asp). The regular expression must be expressed in a form compatible with [`jsonpath`](https://www.npmjs.com/package/jsonpath).
+In addition, it's possible to filter specific properties of a given object by supplying a [regular expression](https://www.w3schools.com/js/js_regexp.asp). The regular expression must be expressed in a form compatible with [`jsonpath`](https://www.npmjs.com/package/jsonpath).
 
 ```javascript
 import compose from 'rippleware';
