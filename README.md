@@ -111,7 +111,7 @@ Notice that we pass an array `[2]` into our `app`, but because we use indexing o
 
 ### 4. State
 
-Finally, it's possible to use state inside of your middleware functions. This can be used for a number of different applications, most commonly caching. In the example below, we will always try to return the first result of execution, if it is exists. 
+Finally, it's possible to use state inside of your middleware functions. This can be used for a number of different applications, most commonly caching. In the example below, we will always try to return the first result of execution, if it exists. 
 
 ```javascript
 import compose from 'rippleware';
