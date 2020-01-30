@@ -69,7 +69,7 @@ import compose from 'rippleware';
 const app = compose()
   .use(
     (handle) => {
-      handle('[String]', () => "You passed a string!");
+      handle('String', () => "You passed a string!");
       handle('*', () => "You didn't pass a string!");
     },
   );
