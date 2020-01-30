@@ -140,7 +140,7 @@ console.log(app([{t: 'hi'}], [{s: 0}])); // [['hi'], [0]]
 Alternatively, you can choose to aggregate multiple indexes over a single parameter:
 
 ```javascript
-import compose from 'compose';
+import compose from 'rippleware';
 
 const app = compose()
   .use([/$.*.t/, /$.*.s/]);
