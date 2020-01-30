@@ -172,6 +172,22 @@ export default (options = { sync: true }) => {
           }
         );
       }
+    } else if (typeCheck('[[RegExp{source:String}]]', args)) {
+      if (args.length === 1) {
+        const [arg] = args;
+        mwr.push(
+          (input) => {
+            return arg.map(
+              e => jsonpath.query(input, regExpToPath(e)),
+            );
+            console.log(input);
+            console.log(arg);
+            throw 'ici';
+          },
+        );
+      } else {
+        throw 'do not know';
+      }
     } else {
       mwr.push(recurseUse(args));
     }
