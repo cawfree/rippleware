@@ -24,7 +24,7 @@ const recurseUse = (e, parent = []) => {
     e(handle);
   } else if (typeCheck("RegExp{source:String}", e)) {
     // TODO: Should enforce object.
-    handle('*', input => jsonpath.query(input, regExpToPath(e)));
+    handle("*", input => jsonpath.query(input, regExpToPath(e)));
   }
   if (handlers.length === 0) {
     throw new Error(
@@ -34,33 +34,26 @@ const recurseUse = (e, parent = []) => {
   return handlers;
 };
 
-const simplify = args => args.map(
-  (arg) => {
+const simplify = args =>
+  args.map(arg => {
     if (typeCheck("RegExp{source:String}", arg)) {
-      return handle => handle(
-        '*',
-        input => jsonpath.query(input, regExpToPath(arg)),
-      );
+      return handle =>
+        handle("*", input => jsonpath.query(input, regExpToPath(arg)));
     } else if (typeCheck("[RegExp{source:String}]", arg)) {
-      return handle => handle(
-        '*',
-        input => arg.map(e => jsonpath.query(input, regExpToPath(e))),
-      );
+      return handle =>
+        handle("*", input =>
+          arg.map(e => jsonpath.query(input, regExpToPath(e)))
+        );
     } else if (typeCheck("[[RegExp{source:String}]]", arg)) {
-      return handle => handle(
-        '*',
-        input => arg.map(
-          e => e.map(
-            f => jsonpath.query(input, regExpToPath(f)),
-          ),
-        ),
-      );
+      return handle =>
+        handle("*", input =>
+          arg.map(e => e.map(f => jsonpath.query(input, regExpToPath(f))))
+        );
       console.log(args);
-      throw 'ici';
+      throw "ici";
     }
     return arg;
-  },
-);
+  });
 
 const findHandlerByMatches = (data, [...handlers]) =>
   handlers.reduce((handler, current) => {
