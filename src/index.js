@@ -11,6 +11,7 @@ const isArrayOfHandlers = e =>
     true
   );
 
+// TODO: This is naive.
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
 const recurseUse = (e, parent = []) => {
@@ -21,6 +22,9 @@ const recurseUse = (e, parent = []) => {
     return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
   } else if (typeCheck("Function", e)) {
     e(handle);
+  } else if (typeCheck("RegExp{source:String}", e)) {
+    // TODO: Should enforce object.
+    handle('*', input => jsonpath.query(input, regExpToPath(e)));
   }
   if (handlers.length === 0) {
     throw new Error(
@@ -29,6 +33,34 @@ const recurseUse = (e, parent = []) => {
   }
   return handlers;
 };
+
+const simplify = args => args.map(
+  (arg) => {
+    if (typeCheck("RegExp{source:String}", arg)) {
+      return handle => handle(
+        '*',
+        input => jsonpath.query(input, regExpToPath(arg)),
+      );
+    } else if (typeCheck("[RegExp{source:String}]", arg)) {
+      return handle => handle(
+        '*',
+        input => arg.map(e => jsonpath.query(input, regExpToPath(e))),
+      );
+    } else if (typeCheck("[[RegExp{source:String}]]", arg)) {
+      return handle => handle(
+        '*',
+        input => arg.map(
+          e => e.map(
+            f => jsonpath.query(input, regExpToPath(f)),
+          ),
+        ),
+      );
+      console.log(args);
+      throw 'ici';
+    }
+    return arg;
+  },
+);
 
 const findHandlerByMatches = (data, [...handlers]) =>
   handlers.reduce((handler, current) => {
@@ -151,39 +183,8 @@ export default (options = { sync: true }) => {
       throw new Error(
         "A call to use() must specify at least a single handler."
       );
-    } else if (typeCheck("[RegExp{source:String}]", args)) {
-      if (args.length === 1) {
-        const [arg] = args;
-        mwr.push(input => jsonpath.query(input, regExpToPath(arg)));
-      } else {
-        mwr.push(input => {
-          if (Array.isArray(input) && input.length >= args.length) {
-            return args.map((e, i) =>
-              jsonpath.query(input[i], regExpToPath(e))
-            );
-          }
-          throw new Error("Data mismatch error.");
-        });
-      }
-    } else if (
-      typeCheck("[[RegExp{source:String}]]", args) ||
-      typeCheck("[[[RegExp{source:String}]]]", args)
-    ) {
-      if (args.length === 1) {
-        const [arg] = args;
-        mwr.push(input => arg.map(e => jsonpath.query(input, regExpToPath(e))));
-      } else {
-        mwr.push(input => {
-          if (Array.isArray(input) && input.length >= args.length) {
-            return args.map((e, i) =>
-              e.map(f => jsonpath.query(input[i], regExpToPath(f)))
-            );
-          }
-          throw new Error("Data mismatch error.");
-        });
-      }
     } else {
-      mwr.push(recurseUse(args));
+      mwr.push(recurseUse(simplify(args)));
     }
     return r;
   };

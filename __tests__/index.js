@@ -149,11 +149,13 @@ it("should be possible to use regular expressions to index objects", () => {
   const app5 = compose().use([[/$.*.t/], [/$.*.s/]]);
 
   const result5 = app5(reviews);
+  
+  expect(result5)
+    .toEqual([
+      [ [ 'Hello', 'Goodbye', 'Hello2', 'Goodbye2' ] ],
+      [ [ 0, 1, 0.1, 0.9 ] ]
+    ]);
 
-  expect(result5).toEqual([
-    ["Hello", "Goodbye", "Hello2", "Goodbye2"],
-    [0, 1, 0.1, 0.9]
-  ]);
 });
 
 it("should be capable of executing the example code", () => {
