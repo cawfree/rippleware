@@ -5,7 +5,7 @@ A middleware-inspired toolbox which enables you to design fully customizable fun
     <img alt="code style: prettier" src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square"></a>
 
 #### 🌠 tl;dr
-It's like a [Factory Pattern](https://www.dofactory.com/javascript/factory-method-design-pattern) for arbitrary sequences of data manipulation. You can think of it like [express](https://www.npmjs.com/package/express) for computation.
+It's like a [Factory Pattern](https://www.dofactory.com/javascript/factory-method-design-pattern) for arbitrary sequences of data manipulation. You can think of it as like [express](https://www.npmjs.com/package/express) for computation.
 
 ## 🔥 Features
   - Deeply configurable, user-extensible function definitions.
