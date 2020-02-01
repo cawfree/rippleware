@@ -28,6 +28,7 @@ it("should not be possible to append new middleware after invoking a function", 
 });
 
 it("should export an argument filtering/indexing interface", async () => {
+
   const app = compose({ sync: false })
     .use(addTwo(), addTwo())
     .use(addTwo(), addTwo())
@@ -41,10 +42,19 @@ it("should export an argument filtering/indexing interface", async () => {
   const result = await app([2], [2]);
 
   expect(result).toEqual([2, 3, 4]);
+
+  const app2 = compose({ sync: false })
+    .use(addTwo(), addTwo())
+    .use(addTwo(), addTwo())
+
+  const result2 = await app2([2], [2]);
+
+  expect(result2)
+    .toEqual([ [ 6 ], [ 6 ] ]);
 });
 
 it("should permit middleware to retain state between executions", async () => {
-  const app = compose({ sync: false }).use([retainState()]);
+  const app = compose({ sync: false }).use(retainState());
 
   const result = await app(500);
   const otherResult = await app(206);
@@ -52,15 +62,7 @@ it("should permit middleware to retain state between executions", async () => {
   expect(result).toEqual(500);
   expect(otherResult).toEqual(500);
 
-  const app2 = compose({ sync: false }).use(retainState());
-
-  const result2 = await app2(500);
-  const otherResult2 = await app2(206);
-
-  expect(result2).toEqual([500]);
-  expect(otherResult2).toEqual([500]);
-
-  const app3 = compose({ sync: false }).use([[retainState()]]);
+  const app3 = compose({ sync: false }).use([retainState()]);
 
   const result3 = await app3([500]);
   const otherResult3 = await app3([206]);
@@ -68,9 +70,11 @@ it("should permit middleware to retain state between executions", async () => {
   expect(result3).toEqual(500);
   expect(otherResult3).toEqual(500);
 
-  const app4 = compose({ sync: false }).use([retainState(), retainState()]);
+  const app4 = compose({ sync: false })
+    .use(retainState());
 
   const result4 = await app4([500, 501]);
+
   const otherResult4 = await app4([206, 207]);
 
   expect(result4).toEqual([500, 501]);

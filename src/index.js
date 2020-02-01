@@ -49,8 +49,6 @@ const simplify = args =>
         handle("*", input =>
           arg.map(e => e.map(f => jsonpath.query(input, regExpToPath(f))))
         );
-      console.log(args);
-      throw "ici";
     }
     return arg;
   });
@@ -131,6 +129,25 @@ const executeMiddleware = (mwr, input) =>
     Promise.resolve(input)
   );
 
+export const syncPromise = (promise) => {
+  const { loopWhile } = require("deasync");
+  const result = { error: undefined, data: undefined, done: false };
+
+  promise
+    .then(data => Object.assign(result, { data, done: true }))
+    .catch(error => Object.assign(result, { error, done: true }));
+
+  loopWhile(() => !result.done);
+
+  const { error, data } = result;
+
+  if (error) {
+    throw new Error(error);
+  }
+
+  return data;
+};
+
 export default (options = { sync: true }) => {
   if (!typeCheck("{sync:Boolean}|Undefined", options)) {
     throw new Error("Invalid options.");
@@ -144,32 +161,11 @@ export default (options = { sync: true }) => {
         "It is not possible to make a call to use() after function execution."
       );
     };
+    const p = executeMiddleware(mwr, input.length === 1 ? input[0] : input);
     if (sync) {
-      const { loopWhile } = require("deasync");
-      const result = { error: undefined, data: undefined, done: false };
-
-      new Promise(resolve =>
-        Promise.resolve()
-          // Here, if the user has only passed a single argument, we'll remove the surrounding array.
-          .then(() =>
-            executeMiddleware(mwr, input.length === 1 ? input[0] : input)
-          )
-          .then(data => resolve(Object.assign(result, { data, done: true })))
-          .catch(error => resolve(Object.assign(result, { error, done: true })))
-      );
-
-      loopWhile(() => !result.done);
-
-      const { error, data } = result;
-
-      if (error) {
-        throw new Error(error);
-      }
-
-      return data;
+      return syncPromise(p);
     }
-    // XXX: Execute the input in stages.
-    return executeMiddleware(mwr, input);
+    return p;
   }
   r.use = (...args) => {
     if (args.length === 0) {
