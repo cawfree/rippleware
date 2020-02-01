@@ -15,6 +15,27 @@ const somethingThatAddsOneToAScalar = () => handle =>
 
 const retainState = () => handle => handle("*", (next, last) => last || next);
 
+it("should parse single arguments in a consistent manner between sync/async execution", async() => {
+
+  const app = compose({ sync: false })
+    .use(handle => handle('*', input => input));
+
+  const app2 = compose()
+    .use(handle => handle('*', input => input));
+
+  const result1 = await app('hi');
+  const result2 = app2('hi');
+
+  expect(result1).toEqual(result2);
+  expect(result1).toEqual('hi');
+
+  const result3 = await app('hi', 'bye');
+  const result4 = app2('hi', 'bye');
+
+  expect(result3).toEqual(result4);
+  expect(result3).toEqual(['hi', 'bye']);
+});
+
 it("should define a composable structure", async () => {
   const app = compose({ sync: false }).use(returnAConstant());
   const res = await app();
