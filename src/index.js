@@ -1,7 +1,6 @@
 import { typeCheck } from "type-check";
 import jsonpath from "jsonpath";
 
-// XXX: Defines that we've encountered a handler; this is a layer which contains only handlers.
 const isArrayOfHandlers = e =>
   Array.isArray(e) &&
   e.length > 0 &&
@@ -113,10 +112,8 @@ const recurseApply = (data, stage) =>
           }
           return recurseApply(data[i], s);
         })
-      ).then(
-        // Otherwise, index the results.
-        results =>
-          stage.length > 1 && results.length > 1 ? results : results[0]
+      ).then(results =>
+        stage.length > 1 && results.length > 1 ? results : results[0]
       );
     }
     return Promise.reject(`A handler for ${data} could not be found.`);
@@ -129,7 +126,7 @@ const executeMiddleware = (mwr, input) =>
     Promise.resolve(input)
   );
 
-export const syncPromise = (promise) => {
+export const forceSync = promise => {
   const { loopWhile } = require("deasync");
   const result = { error: undefined, data: undefined, done: false };
 
@@ -155,7 +152,6 @@ export default (options = { sync: true }) => {
   const mwr = [];
   const { sync } = options;
   function r(...input) {
-    // TODO: Enforce this (check@test).
     r.use = () => {
       throw new Error(
         "It is not possible to make a call to use() after function execution."
@@ -163,7 +159,7 @@ export default (options = { sync: true }) => {
     };
     const p = executeMiddleware(mwr, input.length === 1 ? input[0] : input);
     if (sync) {
-      return syncPromise(p);
+      return forceSync(p);
     }
     return p;
   }

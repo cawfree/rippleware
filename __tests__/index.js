@@ -15,25 +15,24 @@ const somethingThatAddsOneToAScalar = () => handle =>
 
 const retainState = () => handle => handle("*", (next, last) => last || next);
 
-it("should parse single arguments in a consistent manner between sync/async execution", async() => {
+it("should parse single arguments in a consistent manner between sync/async execution", async () => {
+  const app = compose({ sync: false }).use(handle =>
+    handle("*", input => input)
+  );
 
-  const app = compose({ sync: false })
-    .use(handle => handle('*', input => input));
+  const app2 = compose().use(handle => handle("*", input => input));
 
-  const app2 = compose()
-    .use(handle => handle('*', input => input));
-
-  const result1 = await app('hi');
-  const result2 = app2('hi');
+  const result1 = await app("hi");
+  const result2 = app2("hi");
 
   expect(result1).toEqual(result2);
-  expect(result1).toEqual('hi');
+  expect(result1).toEqual("hi");
 
-  const result3 = await app('hi', 'bye');
-  const result4 = app2('hi', 'bye');
+  const result3 = await app("hi", "bye");
+  const result4 = app2("hi", "bye");
 
   expect(result3).toEqual(result4);
-  expect(result3).toEqual(['hi', 'bye']);
+  expect(result3).toEqual(["hi", "bye"]);
 });
 
 it("should define a composable structure", async () => {
@@ -49,7 +48,6 @@ it("should not be possible to append new middleware after invoking a function", 
 });
 
 it("should export an argument filtering/indexing interface", async () => {
-
   const app = compose({ sync: false })
     .use(addTwo(), addTwo())
     .use(addTwo(), addTwo())
@@ -66,12 +64,11 @@ it("should export an argument filtering/indexing interface", async () => {
 
   const app2 = compose({ sync: false })
     .use(addTwo(), addTwo())
-    .use(addTwo(), addTwo())
+    .use(addTwo(), addTwo());
 
   const result2 = await app2([2], [2]);
 
-  expect(result2)
-    .toEqual([ [ 6 ], [ 6 ] ]);
+  expect(result2).toEqual([[6], [6]]);
 });
 
 it("should permit middleware to retain state between executions", async () => {
@@ -91,8 +88,7 @@ it("should permit middleware to retain state between executions", async () => {
   expect(result3).toEqual(500);
   expect(otherResult3).toEqual(500);
 
-  const app4 = compose({ sync: false })
-    .use(retainState());
+  const app4 = compose({ sync: false }).use(retainState());
 
   const result4 = await app4([500, 501]);
 
