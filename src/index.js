@@ -6,18 +6,16 @@ const isArrayOfHandlers = e =>
   Array.isArray(e) &&
   e.length > 0 &&
   e.reduce(
-    (r, f) =>
-      !!r && typeCheck("{matches:String|Function,handler:Function}", f),
+    (r, f) => !!r && typeCheck("{matches:String|Function,handler:Function}", f),
     true
   );
 
 // TODO: This is naive.
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
-const recurseUse = (e) => {
+const recurseUse = e => {
   const handlers = [];
-  const handle = (matches, handler) =>
-    handlers.push({ matches, handler });
+  const handle = (matches, handler) => handlers.push({ matches, handler });
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
   } else if (typeCheck("Function", e)) {
@@ -55,7 +53,7 @@ const simplify = args => {
     }
     return arg;
   });
-}; 
+};
 
 const findHandlerByMatches = (data, [...handlers]) =>
   handlers.reduce((handler, current) => {
@@ -78,8 +76,8 @@ const findHandlerByMatches = (data, [...handlers]) =>
     return handler;
   }, null);
 
-const executeHandler = (handler, data, hooks) => Promise.resolve()
-  .then(() => handler.handler(data, hooks));
+const executeHandler = (handler, data, hooks) =>
+  Promise.resolve().then(() => handler.handler(data, hooks));
 
 const recurseApply = (data, stage, hooks) =>
   Promise.resolve().then(() => {
@@ -123,7 +121,9 @@ const recurseApply = (data, stage, hooks) =>
 const executeMiddleware = (mwr, hooks, input) =>
   mwr.reduce(
     (p, stage, i) =>
-      p.then(dataFromLastStage => recurseApply(dataFromLastStage, stage, hooks)),
+      p.then(dataFromLastStage =>
+        recurseApply(dataFromLastStage, stage, hooks)
+      ),
     Promise.resolve(input)
   );
 
@@ -154,7 +154,7 @@ export default (options = { sync: true }) => {
   const { sync } = options;
 
   let currentHook = 0;
-  
+
   // https://www.netlify.com/blog/2019/03/11/deep-dive-how-do-react-hooks-really-work/
   const { useState, useEffect } = (function() {
     const hooks = [];
@@ -169,20 +169,19 @@ export default (options = { sync: true }) => {
         currentHook++;
       },
       useState(initialValue) {
-        hooks[currentHook] = hooks[currentHook] || (
-          typeCheck('Function', initialValue) ? initialValue() : initialValue
-        );
+        hooks[currentHook] =
+          hooks[currentHook] ||
+          (typeCheck("Function", initialValue) ? initialValue() : initialValue);
 
         const setStateHookIndex = currentHook;
         const setState = newState => (hooks[setStateHookIndex] = newState);
 
         return [hooks[currentHook++], setState];
-      },
-    }
+      }
+    };
   })();
 
-  function r(...input) { 
-
+  function r(...input) {
     currentHook = 0;
 
     r.use = () => {
@@ -194,7 +193,7 @@ export default (options = { sync: true }) => {
     const p = executeMiddleware(
       mwr,
       { useState, useEffect },
-      input.length === 1 ? input[0] : input,
+      input.length === 1 ? input[0] : input
     );
     if (sync) {
       return forceSync(p);
