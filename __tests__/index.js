@@ -3,17 +3,63 @@ import "@babel/polyfill";
 import compose from "../src";
 
 const addTwo = () => handle =>
-  handle("[Number]", (next, last) => {
+  handle("[Number]", (next) => {
     return next.map(e => e + 2);
   });
 
 const returnAConstant = () => handle =>
-  handle("*", (next, last) => [1, 2, [3]]);
+  handle("*", next => [1, 2, [3]]);
 
 const somethingThatAddsOneToAScalar = () => handle =>
-  handle("Number", (next, last) => next + 1);
+  handle("Number", (next) => next + 1);
 
-const retainState = () => handle => handle("*", (next, last) => last || next);
+const retainState = () => handle => (
+  handle("*", (next, { useState }) => {
+    const [result] = useState(next);
+    return result;
+  })
+);
+
+it("should be capable of exporting a hooks interface", () => {
+  const app = compose()
+    .use(
+      handle => handle(
+        '*', (hello, { useState }) => {
+          const [state] = useState(() => ({ hello }));
+          return state;
+        },
+      ),
+    );
+
+  const result = app('world');
+  const result2 = app('hello');
+
+  expect(result).toEqual({ hello: 'world' });
+  expect(result2).toEqual({ hello: 'world' });
+
+  const app2 = compose()
+    .use(
+      handle => handle(
+        '*', (nextProps, { useEffect }) => {
+          let didChange = false;
+          useEffect(
+            () => didChange = true,
+            [nextProps],
+          );
+          return didChange;
+        },
+      ),
+    );
+
+  const result3 = app2();
+  expect(result3).toEqual(true);
+  const result4 = app2();
+  expect(result4).toEqual(false);
+  const result5 = app2('hi');
+  expect(result5).toEqual(true);
+  const result6 = app2('hi');
+  expect(result6).toEqual(false);
+});
 
 it("should parse single arguments in a consistent manner between sync/async execution", async () => {
   const app = compose({ sync: false }).use(handle =>
@@ -177,54 +223,57 @@ it("should be possible to use regular expressions to index objects", () => {
   ]);
 });
 
-it("should be capable of executing the example code", () => {
-  const app = compose().use(handle => handle("*", () => "Hello, world!"));
-
-  expect(app()).toEqual("Hello, world!");
-
-  const app2 = compose().use(handle => {
-    handle("String", () => "You passed a string!");
-    handle("*", () => "You didn't pass a string!");
-  });
-
-  expect(app2("This is a string.")).toEqual("You passed a string!");
-  expect(app2({ life: 42 })).toEqual("You didn't pass a string!");
-
-  const addOneToANumber = () => handle => handle("Number", n => n + 1);
-
-  const app3 = compose().use([addOneToANumber()]);
-
-  expect(app3([2])).toEqual(3);
-
-  const app4 = compose().use(handle =>
-    handle("*", (next, last) => last || next)
-  );
-
-  expect(app4("The only value this will ever return.")).toEqual(
-    "The only value this will ever return."
-  );
-
-  expect(app4("Some other value")).toEqual(
-    "The only value this will ever return."
-  );
-
-  const app5 = compose().use(/$.*.t/);
-
-  expect(app5([{ t: "hi" }, { t: "bye" }])).toEqual(["hi", "bye"]);
-
-  const app6 = compose().use(/$.*.t/, /$.*.s/);
-
-  expect(app6([{ t: "hi" }], [{ s: 0 }])).toEqual([["hi"], [0]]);
-
-  const app7 = compose().use([/$.*.t/, /$.*.s/]);
-
-  expect(
-    app7([
-      { t: "hi", s: 0 },
-      { t: "bye", s: 1 }
-    ])
-  ).toEqual([
-    ["hi", "bye"],
-    [0, 1]
-  ]);
-});
+ it("should be capable of executing the example code", () => {
+   const app = compose().use(handle => handle("*", () => "Hello, world!"));
+ 
+   expect(app()).toEqual("Hello, world!");
+ 
+   const app2 = compose().use(handle => {
+     handle("String", () => "You passed a string!");
+     handle("*", () => "You didn't pass a string!");
+   });
+ 
+   expect(app2("This is a string.")).toEqual("You passed a string!");
+   expect(app2({ life: 42 })).toEqual("You didn't pass a string!");
+ 
+   const addOneToANumber = () => handle => handle("Number", n => n + 1);
+ 
+   const app3 = compose().use([addOneToANumber()]);
+ 
+   expect(app3([2])).toEqual(3);
+ 
+   const app4 = compose().use(handle =>
+     handle("*", (next, { useState }) => {
+       const [r] = useState(next);
+       return r;
+     })
+   );
+ 
+   expect(app4("The only value this will ever return.")).toEqual(
+     "The only value this will ever return."
+   );
+ 
+   expect(app4("Some other value")).toEqual(
+     "The only value this will ever return."
+   );
+ 
+   const app5 = compose().use(/$.*.t/);
+ 
+   expect(app5([{ t: "hi" }, { t: "bye" }])).toEqual(["hi", "bye"]);
+ 
+   const app6 = compose().use(/$.*.t/, /$.*.s/);
+ 
+   expect(app6([{ t: "hi" }], [{ s: 0 }])).toEqual([["hi"], [0]]);
+ 
+   const app7 = compose().use([/$.*.t/, /$.*.s/]);
+ 
+   expect(
+     app7([
+       { t: "hi", s: 0 },
+       { t: "bye", s: 1 }
+     ])
+   ).toEqual([
+     ["hi", "bye"],
+     [0, 1]
+   ]);
+ });

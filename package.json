@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "deasync": "^0.1.19",
+    "deep-equal": "^2.0.1",
     "jsonpath": "^1.0.2",
     "type-check": "^0.3.2"
   }

@@ -1,5 +1,6 @@
 import { typeCheck } from "type-check";
 import jsonpath from "jsonpath";
+import deepEqual from "deep-equal";
 
 const isArrayOfHandlers = e =>
   Array.isArray(e) &&
@@ -13,7 +14,7 @@ const isArrayOfHandlers = e =>
 // TODO: This is naive.
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
-const recurseUse = (e, parent = []) => {
+const recurseUse = (e) => {
   const handlers = [];
   const handle = (matches, handler) =>
     handlers.push({ matches, handler, state: undefined });
@@ -22,7 +23,6 @@ const recurseUse = (e, parent = []) => {
   } else if (typeCheck("Function", e)) {
     e(handle);
   } else if (typeCheck("RegExp{source:String}", e)) {
-    // TODO: Should enforce object.
     handle("*", input => jsonpath.query(input, regExpToPath(e)));
   }
   if (handlers.length === 0) {
@@ -76,11 +76,10 @@ const findHandlerByMatches = (data, [...handlers]) =>
 const freeze = state =>
   !!state && typeof state === "object" ? Object.freeze(state) : state;
 
-const executeHandler = (handler, data) => Promise.resolve()
-  .then(() => handler.handler(data, handler.state))
-  .then(result => (handler.state = freeze(result)));
+const executeHandler = (handler, data, hooks) => Promise.resolve()
+  .then(() => handler.handler(data, hooks));
 
-const recurseApply = (data, stage) =>
+const recurseApply = (data, stage, hooks) =>
   Promise.resolve().then(() => {
     if (typeCheck("Function", stage)) {
       return Promise.resolve().then(() => stage(data));
@@ -94,7 +93,7 @@ const recurseApply = (data, stage) =>
       const [...handlers] = stage[0];
       const handler = findHandlerByMatches(data, handlers);
       if (handler) {
-        return executeHandler(handler, data);
+        return executeHandler(handler, data, hooks);
       }
       return Promise.reject(`Could not find a valid matcher for ${data}.`);
     } else if (data.length >= stage.length) {
@@ -104,13 +103,13 @@ const recurseApply = (data, stage) =>
             const datum = data[i];
             const handler = findHandlerByMatches(datum, s);
             if (handler) {
-              return executeHandler(handler, datum);
+              return executeHandler(handler, datum, hooks);
             }
             return Promise.reject(
               `Could not find a valid matcher for ${datum}.`
             );
           }
-          return recurseApply(data[i], s);
+          return recurseApply(data[i], s, hooks);
         })
       ).then(results =>
         stage.length > 1 && results.length > 1 ? results : results[0]
@@ -119,10 +118,10 @@ const recurseApply = (data, stage) =>
     return Promise.reject(`A handler for ${data} could not be found.`);
   });
 
-const executeMiddleware = (mwr, input) =>
+const executeMiddleware = (mwr, hooks, input) =>
   mwr.reduce(
     (p, stage, i) =>
-      p.then(dataFromLastStage => recurseApply(dataFromLastStage, stage)),
+      p.then(dataFromLastStage => recurseApply(dataFromLastStage, stage, hooks)),
     Promise.resolve(input)
   );
 
@@ -151,13 +150,50 @@ export default (options = { sync: true }) => {
   }
   const mwr = [];
   const { sync } = options;
-  function r(...input) {
+
+  let currentHook = 0;
+  
+  // https://www.netlify.com/blog/2019/03/11/deep-dive-how-do-react-hooks-really-work/
+  const { useState, useEffect } = (function() {
+    const hooks = [];
+    return {
+      useEffect(callback, depArray) {
+        const hasNoDeps = !depArray;
+        const deps = hooks[currentHook];
+        if (hasNoDeps || !deepEqual(deps, depArray)) {
+          hooks[currentHook] = depArray;
+          callback();
+        }
+        currentHook++;
+      },
+      useState(initialValue) {
+        hooks[currentHook] = hooks[currentHook] || (
+          typeCheck('Function', initialValue) ? initialValue() : initialValue
+        );
+
+        const setStateHookIndex = currentHook;
+        const setState = newState => (hooks[setStateHookIndex] = newState);
+
+        return [hooks[currentHook++], setState];
+      },
+    }
+  })();
+
+  function r(...input) { 
+
+    currentHook = 0;
+
     r.use = () => {
       throw new Error(
         "It is not possible to make a call to use() after function execution."
       );
     };
-    const p = executeMiddleware(mwr, input.length === 1 ? input[0] : input);
+
+    const p = executeMiddleware(
+      mwr,
+      { useState, useEffect },
+      input.length === 1 ? input[0] : input,
+    );
     if (sync) {
       return forceSync(p);
     }
