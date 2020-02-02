@@ -166,6 +166,13 @@ it("should propagate scalar values in a common-sense way", () => {
   expect(app(1)).toEqual(3);
 });
 
+it("should be possible to use shorthand declarations", () => {
+  const app = compose()
+    .use('*', input => input + 1);
+  const res = app(2);
+  expect(res).toEqual(3);
+});
+
 it("should be possible to use regular expressions to index objects", () => {
   const reviews = [
     { t: "Hello", s: 0 },
@@ -277,3 +284,4 @@ it("should be possible to use regular expressions to index objects", () => {
      [0, 1]
    ]);
  });
+

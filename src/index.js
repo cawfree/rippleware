@@ -33,8 +33,12 @@ const recurseUse = (e) => {
   return handlers;
 };
 
-const simplify = args =>
-  args.map(arg => {
+const simplify = args => {
+  if (typeCheck("(String, Function))|((Function, Function)", args)) {
+    const [e, fn] = args;
+    return [handle => handle(e, fn)];
+  }
+  return args.map(arg => {
     if (typeCheck("RegExp{source:String}", arg)) {
       return handle =>
         handle("*", input => jsonpath.query(input, regExpToPath(arg)));
@@ -51,6 +55,7 @@ const simplify = args =>
     }
     return arg;
   });
+}; 
 
 const findHandlerByMatches = (data, [...handlers]) =>
   handlers.reduce((handler, current) => {
