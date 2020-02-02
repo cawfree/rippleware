@@ -183,6 +183,21 @@ console.log(app(2)); // 3
 
 This format of handler definition assumes a single default handler of your middleware arguments.
 
+## 🎒 Builtins
+
+### `justOnce`
+Executes the wrapped middleware on the first execution and will propagate the input signals unmodified for all future passes.
+
+```javascript
+import compose, { justOnce } from 'rippleware';
+
+const app = compose()
+  .use(justOnce('*', input => !input));
+
+console.log(app(true)); // false
+console.log(app(true)); // true
+```
+
 ## 😎 Contributing
 
 This is an active project, and your contributes are welcome! Before submitting any [Pull Requests](https://github.com/cawfree/rippleware/pulls), please ensure all existing unit tests pass with a call to `yarn jest`.

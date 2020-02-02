@@ -1,6 +1,6 @@
 import "@babel/polyfill";
 
-import compose from "../src";
+import compose, { justOnce } from "../src";
 
 const addTwo = () => handle =>
   handle("[Number]", next => {
@@ -271,4 +271,14 @@ it("should be capable of executing the example code", () => {
     ["hi", "bye"],
     [0, 1]
   ]);
+});
+
+it("should be possible to execute some middleware only once", () => {
+  const app = compose().use(justOnce("*", input => !input));
+
+  const result = app(true);
+  const result2 = app(true);
+
+  expect(result).toEqual(false);
+  expect(result2).toEqual(true);
 });
