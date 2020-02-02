@@ -76,6 +76,10 @@ const findHandlerByMatches = (data, [...handlers]) =>
 const freeze = state =>
   !!state && typeof state === "object" ? Object.freeze(state) : state;
 
+const executeHandler = (handler, data) => Promise.resolve()
+  .then(() => handler.handler(data, handler.state))
+  .then(result => (handler.state = freeze(result)));
+
 const recurseApply = (data, stage) =>
   Promise.resolve().then(() => {
     if (typeCheck("Function", stage)) {
@@ -90,9 +94,7 @@ const recurseApply = (data, stage) =>
       const [...handlers] = stage[0];
       const handler = findHandlerByMatches(data, handlers);
       if (handler) {
-        return Promise.resolve()
-          .then(() => handler.handler(data, handler.state))
-          .then(result => (handler.state = freeze(result)));
+        return executeHandler(handler, data);
       }
       return Promise.reject(`Could not find a valid matcher for ${data}.`);
     } else if (data.length >= stage.length) {
@@ -102,9 +104,7 @@ const recurseApply = (data, stage) =>
             const datum = data[i];
             const handler = findHandlerByMatches(datum, s);
             if (handler) {
-              return Promise.resolve()
-                .then(() => handler.handler(datum, handler.state))
-                .then(result => (handler.state = freeze(result)));
+              return executeHandler(handler, datum);
             }
             return Promise.reject(
               `Could not find a valid matcher for ${datum}.`
