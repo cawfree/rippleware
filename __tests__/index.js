@@ -278,7 +278,9 @@ it("should be possible to execute some middleware only once", () => {
 
   const result = app(true);
   const result2 = app(true);
+  const result3 = app(true);
 
   expect(result).toEqual(false);
   expect(result2).toEqual(true);
+  expect(result3).toEqual(true);
 });
