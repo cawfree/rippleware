@@ -11,7 +11,7 @@ It's like a [Factory Pattern](https://www.dofactory.com/javascript/factory-metho
   - Deeply configurable, user-extensible function definitions.
     - Design arbitrarily long sequences of data manipulation.
     - Define multiple routes based on [`type-check`](https://www.npmjs.com/package/type-check) rigorous declaration syntax.
-  - Optional persistent middleware state.
+  - Using hooks, you can persist and react to dynamics.
     - You can cache and respond to middleware results from previous executions.
   - Synchronous execution, independent of middleware asynchrony. (yes, _really_)
     - If you're tired of `async`/`await` or `.then()`, you [don't have to use them at all](https://www.npmjs.com/package/deasync).
@@ -148,21 +148,26 @@ const app = compose()
 console.log(app([{t: 'hi', s: 0}, {t: 'bye', s: 1}])); // [['hi', 'bye'], [0, 1]]
 ```
 
-### 4. State
+### 4. Hooks
 
-Finally, it's possible to use state inside of your middleware functions. This can be used for a number of different applications, most commonly caching. In the example below, we will always try to return the first result of execution, if it exists. 
+Finally, it's possible to use [hooks](https://reactjs.org/docs/hooks-intro.html) inside of your middleware functions. In the example below, we cache props from the first invocation and rely return this forever after.
 
 ```javascript
 import compose from 'rippleware';
 
 const app = compose()
-    .use(handle => handle('*', (next, last) => (last || next)));
+  .use(
+    '*', handle => handle(
+      (nextProps, { useState }) => {
+        const [state] = useState(() => nextProps);
+        return state;
+      },
+    ),
+  );
 
 app('The only value this will ever return.'); // "The only value this will ever return."
 app('Some other value')); // "The only value this will ever return."
 ```
-
-At the first execution of your middleware, the value of `last` will be `undefined`. For all subsequent executions, the value of `last` will be equal to whatever your middleware returned the last time it was called. In addition, `last` is [immutable](https://medium.zenika.com/immutability-in-javascript-7e1a19b45615) to prevent misuse.
 
 ## 😎 Contributing
 

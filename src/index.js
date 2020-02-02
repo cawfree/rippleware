@@ -7,7 +7,7 @@ const isArrayOfHandlers = e =>
   e.length > 0 &&
   e.reduce(
     (r, f) =>
-      !!r && typeCheck("{matches:String|Function,handler:Function,state:*}", f),
+      !!r && typeCheck("{matches:String|Function,handler:Function}", f),
     true
   );
 
@@ -17,7 +17,7 @@ const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 const recurseUse = (e) => {
   const handlers = [];
   const handle = (matches, handler) =>
-    handlers.push({ matches, handler, state: undefined });
+    handlers.push({ matches, handler });
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
   } else if (typeCheck("Function", e)) {
@@ -72,9 +72,6 @@ const findHandlerByMatches = (data, [...handlers]) =>
     }
     return handler;
   }, null);
-
-const freeze = state =>
-  !!state && typeof state === "object" ? Object.freeze(state) : state;
 
 const executeHandler = (handler, data, hooks) => Promise.resolve()
   .then(() => handler.handler(data, hooks));
