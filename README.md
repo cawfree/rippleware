@@ -169,7 +169,7 @@ app('The only value this will ever return.'); // "The only value this will ever 
 app('Some other value')); // "The only value this will ever return."
 ```
 
-### 5. Shorthand
+### 5. Shorthand Notation
 Finally, now that we're familiar with the underpinnings of rippleware, you'll find it useful to know that it's possible to directly declare handler functions inline:
 
 ```javascript
