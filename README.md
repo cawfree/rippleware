@@ -150,7 +150,7 @@ console.log(app([{t: 'hi', s: 0}, {t: 'bye', s: 1}])); // [['hi', 'bye'], [0, 1]
 
 ### 4. Hooks
 
-Finally, it's possible to use [hooks](https://reactjs.org/docs/hooks-intro.html) inside of your middleware functions. In the example below, we cache props from the first invocation and rely return this forever after.
+It's possible to take advantage of [React](https://reactjs.org/)-inspired [hooks](https://reactjs.org/docs/hooks-intro.html) inside of your middleware functions. In the example below, we cache props from the first invocation and rely return this forever after.
 
 ```javascript
 import compose from 'rippleware';
@@ -168,6 +168,20 @@ const app = compose()
 app('The only value this will ever return.'); // "The only value this will ever return."
 app('Some other value')); // "The only value this will ever return."
 ```
+
+### 5. Shorthand
+Finally, now that we're familiar with the underpinnings of rippleware, you'll find it useful to know that it's possible to directly declare handler functions inline:
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use('*', input => input + 1);
+
+console.log(app(2)); // 3
+```
+
+This format of handler definition assumes a single default handler of your middleware arguments.
 
 ## 😎 Contributing
 
