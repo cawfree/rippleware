@@ -196,6 +196,7 @@ const app = compose()
 
 console.log(app(true)); // false
 console.log(app(true)); // true
+console.log(app(true)); // true
 ```
 
 ## 😎 Contributing
