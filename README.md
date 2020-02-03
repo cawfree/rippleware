@@ -33,7 +33,7 @@ Using [`yarn`]():
 yarn add rippleware
 ```
 
-##  Overview
+## 👀 Overview
 
 ### 1. Hello, world!
 
