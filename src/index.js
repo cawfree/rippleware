@@ -6,7 +6,7 @@ const isArrayOfHandlers = e =>
   Array.isArray(e) &&
   e.reduce(
     (r, f) => !!r && typeCheck("{matches:String|Function,handler:Function}", f),
-    e.length > 0,
+    e.length > 0
   );
 
 // TODO: This is naive.
@@ -150,17 +150,17 @@ const defaultOptions = Object.freeze({ sync: true });
 const init = (...args) => {
   if (args.length === 0) {
     return [undefined, defaultOptions];
-  } else if (typeCheck('[{sync:Boolean}]', args) && args.length === 1) {
+  } else if (typeCheck("[{sync:Boolean}]", args) && args.length === 1) {
     const [options] = args;
     return [undefined, options];
-  } else if (typeCheck('[Function]', args) && args.length === 1) {
+  } else if (typeCheck("[Function]", args) && args.length === 1) {
     const [func] = args;
     return [func(), defaultOptions];
-  } else if (typeCheck('(Function, {sync:Boolean})', args)) {
+  } else if (typeCheck("(Function, {sync:Boolean})", args)) {
     const [func, ...extras] = args;
     return [func(), ...extras];
   }
-  throw new Error('Invalid options.');
+  throw new Error("Invalid options.");
 };
 
 export const compose = (...args) => {
