@@ -325,7 +325,13 @@ it("should be possible to implement functional global state", async () => {
   const b = await app2().then(e => e + 1);
   const c = await app2().then(e => e + 1);
 
+  const app3 = compose(buildStore)
+    .use('*', (_, { useGlobal }) => useGlobal().dispatch(increment()))
+    .use(justOnce('*', (_, { useGlobal }) => useGlobal().getState().get('cnt')));
+
   expect(a).toEqual(true);
   expect(b).toEqual(5);
   expect(c).toEqual(9);
+
+  expect(app3()).toEqual(1);
 });

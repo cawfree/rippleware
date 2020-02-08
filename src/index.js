@@ -231,14 +231,16 @@ export const compose = (...args) => {
 };
 
 export const justOnce = (...args) => burden =>
-  burden("*", (input, { useState }) => {
-    const [app] = useState(() => compose().use(...args));
+  burden("*", (input, { useState, useGlobal }) => {
+    const [app] = useState(() => compose(() => useGlobal(), { sync: false }).use(...args));
     const [once, setOnce] = useState(false);
     if (once === false) {
       setOnce(true);
-      return app(input);
+      return Promise
+        .resolve(app(input));
     }
-    return input;
+    return Promise
+      .resolve(input);
   });
 
 export default compose;
