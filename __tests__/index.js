@@ -1,5 +1,8 @@
 import "@babel/polyfill";
 
+import { Map } from 'immutable';
+import { createStore } from "redux";
+
 import compose, { justOnce } from "../src";
 
 const addTwo = () => handle =>
@@ -283,4 +286,53 @@ it("should be possible to execute some middleware only once", () => {
   expect(result).toEqual(false);
   expect(result2).toEqual(true);
   expect(result3).toEqual(true);
+});
+
+it("should be possible to implement functional global state", async () => {
+
+  const INCREMENT = 'reducer/INCREMENT';
+  const increment = () => ({ type: INCREMENT });
+
+  const buildStore = () => {
+    const initialState = Map({ cnt: 0 });
+    const reducer = (state = initialState, { type, ...extras }) => {
+      switch (type) {
+        case INCREMENT:
+          return state.set('cnt', state.get('cnt') + 1);
+        default:
+          return state;
+      }
+    };
+    return createStore(reducer);
+  };
+
+  const app = compose(buildStore)
+    .use('*', () => true);
+
+  const app2 = compose(buildStore, { sync: false })
+    .use('*', (input, { useGlobal }) => {
+      const { dispatch } = useGlobal();
+      dispatch(increment());
+      dispatch(increment());
+      dispatch(increment());
+      dispatch(increment());
+      return input;
+    })
+    .use('*', (input, { useGlobal }) => {
+      const { getState } = useGlobal();
+      return getState().get('cnt');
+    });
+
+  const a = app();
+  const b = await app2()
+    .then(e => e + 1);
+  const c = await app2()
+    .then(e => e + 1);
+
+  expect(a)
+    .toEqual(true);
+  expect(b)
+    .toEqual(5);
+  expect(c)
+    .toEqual(9);
 });

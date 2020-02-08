@@ -167,7 +167,67 @@ const app = compose()
 
 app('The only value this will ever return.'); // "The only value this will ever return."
 app('Some other value')); // "The only value this will ever return."
+
+#### 4.1 `useGlobal`
+
+The `useGlobal` hook enables middleware to take advantage of function-global state operations. These are useful for implementing the storage of data and functionality which underpins the operation of multiple middleware steps.
+
+> By default, there is *no* global state configured, and therefore calls to `useGlobal` will return `undefined`.
+
+A simple example of global function state is depicted in the example below, where we allocate a new rippleware whose global state was initialized to a _mutable_ object with the child value, `value`.
+
+```javascript
+import rippleware from 'rippleware';
+
+const app = compose(() => ({ value: 0 }))
+  .use('*', (input, { useGlobal }) => {
+    useGlobal.value += 1;
+  })
+  .use('*', (_, { useGlobal }) => useGlobal().value);
+
+app(); // 1
+app(); // 2
+app(); // 3
 ```
+
+Obviously, [mutable state sucks, and must be avoided.](https://hackernoon.com/mutability-leads-to-suffering-23671a0def6a).
+
+In the example below, we can show that it's possible to utilize mature state management libraries such as [Redux](https://github.com/reduxjs/redux):
+
+```javascript
+import rippleware from 'rippleware';
+import { Map } from 'immutable';
+import { createStore } from 'redux';
+
+const INCREMENT = 'reducer/INCREMENT';
+const increment = () => ({ type: INCREMENT });
+
+const buildStore = () => {
+  const initialState = Map({ value: 0 });
+  const reducer = (state = initialState, { type, ...extras }) => {
+    switch (type) {
+      case INCREMENT:
+        return state.set('value', state.get('value') + 1);
+      default:
+        return state;
+    }
+  };
+  return createStore(reducer);
+};
+
+const app = compose(buildStore)
+  .use('*', (_, { useGlobal }) => {
+    const { dispatch } = useGlobal();
+    dispatch(increment());
+  })
+  .use('*', (_, { useGlobal }) => useGlobal().getState().get('value'));
+
+app(); // 1
+app(); // 2
+app(); // 3
+```
+
+This will lead to far less bugs, and greatly less scope for misuse!
 
 ### 5. Shorthand Notation
 Finally, now that we're familiar with the underpinnings of rippleware, you'll find it useful to know that it's possible to directly declare handler functions inline:

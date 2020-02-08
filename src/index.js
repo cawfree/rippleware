@@ -4,10 +4,9 @@ import deepEqual from "deep-equal";
 
 const isArrayOfHandlers = e =>
   Array.isArray(e) &&
-  e.length > 0 &&
   e.reduce(
     (r, f) => !!r && typeCheck("{matches:String|Function,handler:Function}", f),
-    true
+    e.length > 0,
   );
 
 // TODO: This is naive.
@@ -146,19 +145,37 @@ export const forceSync = promise => {
   return data;
 };
 
-export const compose = (options = { sync: true }) => {
-  if (!typeCheck("{sync:Boolean}|Undefined", options)) {
-    throw new Error("Invalid options.");
+const defaultOptions = Object.freeze({ sync: true });
+
+const init = (...args) => {
+  if (args.length === 0) {
+    return [undefined, defaultOptions];
+  } else if (typeCheck('[{sync:Boolean}]', args) && args.length === 1) {
+    const [options] = args;
+    return [undefined, options];
+  } else if (typeCheck('[Function]', args) && args.length === 1) {
+    const [func] = args;
+    return [func(), defaultOptions];
+  } else if (typeCheck('(Function, {sync:Boolean})', args)) {
+    const [func, ...extras] = args;
+    return [func(), ...extras];
   }
+  throw new Error('Invalid options.');
+};
+
+export const compose = (...args) => {
+  const [globalState, options] = init(...args);
+
   const mwr = [];
   const { sync } = options;
 
   let currentHook = 0;
 
   // https://www.netlify.com/blog/2019/03/11/deep-dive-how-do-react-hooks-really-work/
-  const { useState, useEffect } = (function() {
+  const { ...hooks } = (function() {
     const hooks = [];
     return {
+      useGlobal: () => globalState,
       useEffect(callback, depArray) {
         const hasNoDeps = !depArray;
         const deps = hooks[currentHook];
@@ -192,7 +209,7 @@ export const compose = (options = { sync: true }) => {
 
     const p = executeMiddleware(
       mwr,
-      { useState, useEffect },
+      hooks,
       input.length === 1 ? input[0] : input
     );
     if (sync) {
@@ -217,7 +234,6 @@ export const justOnce = (...args) => burden =>
   burden("*", (input, { useState }) => {
     const [app] = useState(() => compose().use(...args));
     const [once, setOnce] = useState(false);
-
     if (once === false) {
       setOnce(true);
       return app(input);
