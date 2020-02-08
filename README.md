@@ -178,11 +178,11 @@ The `useGlobal` hook enables middleware to take advantage of function-global sta
 A simple example of global function state is depicted in the example below, where we allocate a new rippleware whose global state was initialized to a _mutable_ object with the child value, `value`.
 
 ```javascript
-import rippleware from 'rippleware';
+import compose from 'rippleware';
 
 const app = compose(() => ({ value: 0 }))
   .use('*', (input, { useGlobal }) => {
-    useGlobal.value += 1;
+    useGlobal().value += 1;
   })
   .use('*', (_, { useGlobal }) => useGlobal().value);
 
@@ -191,12 +191,12 @@ app(); // 2
 app(); // 3
 ```
 
-Obviously, [mutable state sucks, and must be avoided.](https://hackernoon.com/mutability-leads-to-suffering-23671a0def6a).
+Obviously, [mutable state sucks, and must be avoided.](https://hackernoon.com/mutability-leads-to-suffering-23671a0def6a)
 
 In the example below, we can show that it's possible to utilize mature state management libraries such as [Redux](https://github.com/reduxjs/redux):
 
 ```javascript
-import rippleware from 'rippleware';
+import compose from 'rippleware';
 import { Map } from 'immutable';
 import { createStore } from 'redux';
 
