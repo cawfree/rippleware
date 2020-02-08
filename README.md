@@ -164,6 +164,7 @@ const app = compose()
       },
     ),
   );
+```
 
 app('The only value this will ever return.'); // "The only value this will ever return."
 app('Some other value')); // "The only value this will ever return."
