@@ -182,7 +182,7 @@ import rippleware from 'rippleware';
 
 const app = compose(() => ({ value: 0 }))
   .use('*', (input, { useGlobal }) => {
-    useGlobal.value += 1;
+    useGlobal().value += 1;
   })
   .use('*', (_, { useGlobal }) => useGlobal().value);
 
@@ -191,7 +191,7 @@ app(); // 2
 app(); // 3
 ```
 
-Obviously, [mutable state sucks, and must be avoided.](https://hackernoon.com/mutability-leads-to-suffering-23671a0def6a).
+Obviously, [mutable state sucks, and must be avoided.](https://hackernoon.com/mutability-leads-to-suffering-23671a0def6a)
 
 In the example below, we can show that it's possible to utilize mature state management libraries such as [Redux](https://github.com/reduxjs/redux):
 
