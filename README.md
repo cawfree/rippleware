@@ -230,6 +230,32 @@ app(); // 3
 
 This will lead to far less bugs, and greatly less scope for misuse!
 
+#### 4.2 `useMeta`
+
+It is possible for middleware functions supplied using calls to `use()` to actually return _two_ kinds of data. There's the conventional result, which you'd expect the caller to see, and there's the _meta_, which you'd expect subsequent middleware stages to interrogate.
+
+This functionality permits functions to return using traditional data types and conventions that would be expected from by an external, non-rippleware-oriented caller. Meanwhile, it is possible to empower neighbouring middleware stages with deeper execution context that we wouldn't necessarily want to burden the caller with.
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use(
+    'Number', (input, { useMeta }) => {
+      useMeta({ type: 'incrementer', desc: 'Adds one to a number!' });
+      return input + 1;
+    },
+  )
+  .use(
+    '*', (input, { useMeta }) => {
+      const { type } = useMeta(); // 'incrementer'
+      return input;
+    },
+  );
+
+app(1); // 2
+```
+
 ### 5. Shorthand Notation
 Finally, now that we're familiar with the underpinnings of rippleware, you'll find it useful to know that it's possible to directly declare handler functions inline:
 
