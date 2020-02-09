@@ -41,10 +41,14 @@ const simplify = args => {
         handle("*", input => jsonpath.query(input, regExpToPath(arg)));
     } else if (typeCheck("[RegExp{source:String}]", arg)) {
       return handle =>
-        handle("*", input => arg.map(e => jsonpath.query(input, regExpToPath(e))));
+        handle("*", input =>
+          arg.map(e => jsonpath.query(input, regExpToPath(e)))
+        );
     } else if (typeCheck("[[RegExp{source:String}]]", arg)) {
       return handle =>
-        handle("*", input => arg.map(e => e.map(f => jsonpath.query(input, regExpToPath(f)))));
+        handle("*", input =>
+          arg.map(e => e.map(f => jsonpath.query(input, regExpToPath(f))))
+        );
     }
     return arg;
   });
@@ -73,25 +77,23 @@ const findHandlerByMatches = (data, [...handlers]) =>
 
 const executeHandler = ({ handler }, data, hooks, metaIn) => {
   let meta = undefined;
-  return Promise
-    .resolve()
-    .then(
-      () => handler(
-        data,
-        {
-          ...hooks,
-          useMeta: (...args) => {
-            if (args.length === 1) {
-              const [arg] = args;
-              meta = arg;
-              return undefined;
-            } else if (args.length === 0) {
-              return metaIn;
-            }
-            throw new Error('A call to useMeta() must contain only one or zero arguments.');
-          },
-        },
-      ),
+  return Promise.resolve()
+    .then(() =>
+      handler(data, {
+        ...hooks,
+        useMeta: (...args) => {
+          if (args.length === 1) {
+            const [arg] = args;
+            meta = arg;
+            return undefined;
+          } else if (args.length === 0) {
+            return metaIn;
+          }
+          throw new Error(
+            "A call to useMeta() must contain only one or zero arguments."
+          );
+        }
+      })
     )
     .then(result => [result, meta]);
 };
@@ -106,8 +108,8 @@ const collectResults = (stage, e) => {
     },
     {
       results: [],
-      metas: [],
-    },
+      metas: []
+    }
   );
   if (stage.length > 1 && results.length > 1) {
     return [results, metas];
@@ -118,10 +120,13 @@ const collectResults = (stage, e) => {
 const recurseApply = (data, stage, hooks, meta) =>
   Promise.resolve().then(() => {
     if (typeCheck("Function", stage)) {
-      return Promise.resolve().then(() => stage(data))
+      return Promise.resolve()
+        .then(() => stage(data))
         .then(result => [result, undefined]);
     } else if (!Array.isArray(stage) || stage.length === 0) {
-      return Promise.reject(new Error("A call to use() must define at least a single handler."));
+      return Promise.reject(
+        new Error("A call to use() must define at least a single handler.")
+      );
     } else if (stage.length === 1 && isArrayOfHandlers(stage[0])) {
       // XXX: Special case: consume the entire argument without destructuring
       //      if we're using a single array handler.
@@ -140,15 +145,18 @@ const recurseApply = (data, stage, hooks, meta) =>
             if (handler) {
               return executeHandler(handler, datum, hooks, meta);
             }
-            return Promise.reject(new Error(`Could not find a valid matcher for ${datum}.`));
+            return Promise.reject(
+              new Error(`Could not find a valid matcher for ${datum}.`)
+            );
           }
           // TODO: how to delegate meta?
           return recurseApply(data[i], s, hooks, meta);
         })
-      )
-      .then(e => collectResults(stage, e));
+      ).then(e => collectResults(stage, e));
     }
-    return Promise.reject(new Error(`A handler for ${data} could not be found.`));
+    return Promise.reject(
+      new Error(`A handler for ${data} could not be found.`)
+    );
   });
 
 const executeMiddleware = (mwr, hooks, input) =>
@@ -156,14 +164,10 @@ const executeMiddleware = (mwr, hooks, input) =>
     (p, stage, i) =>
       p.then(dataFromLastStage => {
         const [result, meta] = dataFromLastStage;
-        return recurseApply(result, stage, hooks, meta)
-          .then(
-            (e) => {
-              return e;
-            },
-          );
-      },
-    ),
+        return recurseApply(result, stage, hooks, meta).then(e => {
+          return e;
+        });
+      }),
     Promise.resolve([input, undefined])
   );
 
@@ -216,7 +220,7 @@ export const compose = (...args) => {
   const { ...hooks } = (function() {
     const hooks = [];
     return {
-      useGlobal: () => globalState, 
+      useGlobal: () => globalState,
       useEffect(callback, depArray) {
         const hasNoDeps = !depArray;
         const deps = hooks[currentHook];
@@ -257,8 +261,7 @@ export const compose = (...args) => {
       const [result] = forceSync(p);
       return result;
     }
-    return p
-      .then(([result]) => result);
+    return p.then(([result]) => result);
   }
   r.use = (...args) => {
     if (args.length === 0) {

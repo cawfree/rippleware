@@ -366,48 +366,42 @@ it("should be possible to access global state from the handler level", () => {
 });
 
 it("should be possible to declare and consume meta to permit the propagation of hidden properties", () => {
-  const numericHandler = () => handle => handle(
-    'Number',
-    (input, { useMeta }) => {
-      useMeta('numeric');
+  const numericHandler = () => handle =>
+    handle("Number", (input, { useMeta }) => {
+      useMeta("numeric");
       return input + 1;
-    },
-  );
-  const booleanHandler = () => handle => handle(
-    'Boolean',
-    (input, { useMeta }) => {
-      useMeta('boolean');
+    });
+  const booleanHandler = () => handle =>
+    handle("Boolean", (input, { useMeta }) => {
+      useMeta("boolean");
       return !input;
-    },
-  );
+    });
 
-  const metaHandler = () => handle => handle('*', (input, { useMeta }) => useMeta());
+  const metaHandler = () => handle =>
+    handle("*", (input, { useMeta }) => useMeta());
 
   const app = compose()
     .use(numericHandler())
     .use(metaHandler());
 
-  expect(app(3)).toEqual('numeric');
+  expect(app(3)).toEqual("numeric");
 
   const app2 = compose()
     .use(booleanHandler())
     .use(metaHandler());
-  expect(app2(true)).toEqual('boolean');
+  expect(app2(true)).toEqual("boolean");
 
   const app3 = compose()
     .use(numericHandler(), booleanHandler())
     .use(metaHandler());
 
-  expect(app3(3, true)).toEqual(['numeric', 'boolean']);
+  expect(app3(3, true)).toEqual(["numeric", "boolean"]);
 
-  const app4 = compose()
-    .use('*', (_, { useMeta }) => useMeta(1, 1));
+  const app4 = compose().use("*", (_, { useMeta }) => useMeta(1, 1));
 
-  expect(() => app4())
-    .toThrow();
+  expect(() => app4()).toThrow();
 
-  const app5 = compose()
-    .use('*', (_, { useMeta }) => useMeta());
+  const app5 = compose().use("*", (_, { useMeta }) => useMeta());
 
-  expect(app5('This should be undefined.')).toEqual(undefined);
+  expect(app5("This should be undefined.")).toEqual(undefined);
 });
