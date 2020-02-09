@@ -41,14 +41,10 @@ const simplify = args => {
         handle("*", input => jsonpath.query(input, regExpToPath(arg)));
     } else if (typeCheck("[RegExp{source:String}]", arg)) {
       return handle =>
-        handle("*", input =>
-          arg.map(e => jsonpath.query(input, regExpToPath(e)))
-        );
+        handle("*", input => arg.map(e => jsonpath.query(input, regExpToPath(e))));
     } else if (typeCheck("[[RegExp{source:String}]]", arg)) {
       return handle =>
-        handle("*", input =>
-          arg.map(e => e.map(f => jsonpath.query(input, regExpToPath(f))))
-        );
+        handle("*", input => arg.map(e => e.map(f => jsonpath.query(input, regExpToPath(f)))));
     }
     return arg;
   });
@@ -102,10 +98,35 @@ const executeHandler = ({ handler }, data, hooks) => {
     .then(result => [result, meta]);
 };
 
+const collectResults = (stage, e) => {
+  const { results, metas } = e.reduce(
+    (obj, e) => {
+      const [result, meta] = e;
+      obj.results.push(result);
+      obj.metas.push(meta);
+      return obj;
+    },
+    {
+      results: [],
+      metas: [],
+    },
+  );
+  if (stage.length > 1 && results.length > 1) {
+    return [results, metas];
+  }
+  return [results[0], metas[0]];
+};
+
 const recurseApply = (data, stage, hooks) =>
   Promise.resolve().then(() => {
     if (typeCheck("Function", stage)) {
-      return Promise.resolve().then(() => stage(data));
+      return Promise.resolve().then(() => stage(data))
+        .then(
+          (result) => {
+            return result;
+          },
+        )
+        .then(result => [result, undefined]);
     } else if (!Array.isArray(stage) || stage.length === 0) {
       return Promise.reject(new Error("A call to use() must define at least a single handler."));
     } else if (stage.length === 1 && isArrayOfHandlers(stage[0])) {
@@ -115,7 +136,11 @@ const recurseApply = (data, stage, hooks) =>
       const handler = findHandlerByMatches(data, handlers);
       if (handler) {
         return executeHandler(handler, data, hooks)
-          .then(([result, meta]) => result);
+          .then(
+            (e) => {
+              return e;
+            },
+          );
       }
       return Promise.reject(`Could not find a valid matcher for ${data}.`);
     } else if (data.length >= stage.length) {
@@ -125,14 +150,19 @@ const recurseApply = (data, stage, hooks) =>
             const datum = data[i];
             const handler = findHandlerByMatches(datum, s);
             if (handler) {
-              return executeHandler(handler, datum, hooks)
-                .then(([result, meta]) => result);
+              return executeHandler(handler, datum, hooks);
             }
             return Promise.reject(new Error(`Could not find a valid matcher for ${datum}.`));
           }
-          return recurseApply(data[i], s, hooks);
+          return recurseApply(data[i], s, hooks)
+            .then(
+              (e) => {
+                return e;
+              },
+            );
         })
-      ).then(results => stage.length > 1 && results.length > 1 ? results : results[0]);
+      )
+      .then(e => collectResults(stage, e));
     }
     return Promise.reject(new Error(`A handler for ${data} could not be found.`));
   });
@@ -140,10 +170,17 @@ const recurseApply = (data, stage, hooks) =>
 const executeMiddleware = (mwr, hooks, input) =>
   mwr.reduce(
     (p, stage, i) =>
-      p.then(dataFromLastStage =>
-        recurseApply(dataFromLastStage, stage, hooks)
-      ),
-    Promise.resolve(input)
+      p.then(dataFromLastStage => {
+        const [result] = dataFromLastStage;
+        return recurseApply(result, stage, hooks)
+          .then(
+            (e) => {
+              return e;
+            },
+          );
+      },
+    ),
+    Promise.resolve([input, undefined])
   );
 
 export const forceSync = promise => {
@@ -233,9 +270,11 @@ export const compose = (...args) => {
       input.length === 1 ? input[0] : input
     );
     if (sync) {
-      return forceSync(p);
+      const [result] = forceSync(p);
+      return result;
     }
-    return p;
+    return p
+      .then(([result]) => result);
   }
   r.use = (...args) => {
     if (args.length === 0) {
