@@ -364,3 +364,42 @@ it("should be possible to access global state from the handler level", () => {
 
   expect(app2()).toEqual(1);
 });
+
+it("should be possible to declare and consume meta to permit the propagation of hidden properties", () => {
+  const numericHandler = () => handle => => handle(
+    'Number',
+    (input, { useMeta }) => {
+      useMeta('numeric');
+      return input + 1;
+    },
+  );
+  const booleanHandler = () => handle => handle(
+    'Boolean',
+    (input, { useMeta }) => {
+      useMeta('boolean');
+      return !input;
+    },
+  );
+  const metaHandler = () => handle => (
+    '*',
+    (input, { useMeta }) => useMeta(),
+  );
+
+  //const app = compose()
+  //  .use(
+  //    handle => handle(
+  //      '*', (input, { useMeta }) => {
+  //        useMeta({ someStuff: true });
+  //        //useOutputMeta('inverter');
+  //        return !input;
+  //      },
+  //    ),
+  //  )
+  //  .use(
+  //    '*', (input, { useMeta }) => {
+  //      const valueIn = useMeta();
+  //      //const result = useInputMeta();
+  //      return result;
+  //    },
+  //  );
+});

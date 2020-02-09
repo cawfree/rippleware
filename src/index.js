@@ -175,7 +175,7 @@ export const compose = (...args) => {
   const { ...hooks } = (function() {
     const hooks = [];
     return {
-      useGlobal: () => globalState,
+      useGlobal: () => globalState, 
       useEffect(callback, depArray) {
         const hasNoDeps = !depArray;
         const deps = hooks[currentHook];
