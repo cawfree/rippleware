@@ -84,7 +84,7 @@ const executeHandler = ({ handler }, data, hooks, metaIn) => {
         useMeta: (...args) => {
           if (args.length === 1) {
             const [arg] = args;
-            meta = arg;
+            meta = !!arg && typeof arg == "object" ? Object.freeze(arg) : arg;
             return undefined;
           } else if (args.length === 0) {
             return metaIn;

@@ -404,4 +404,10 @@ it("should be possible to declare and consume meta to permit the propagation of 
   const app5 = compose().use("*", (_, { useMeta }) => useMeta());
 
   expect(app5("This should be undefined.")).toEqual(undefined);
+
+  const app6 = compose()
+    .use("*", (_, { useMeta }) => useMeta({ a: 2 }))
+    .use("*", (_, { useMeta }) => (useMeta().a = 4));
+
+  expect(() => app6()).toThrow();
 });
