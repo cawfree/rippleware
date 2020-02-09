@@ -75,8 +75,27 @@ const findHandlerByMatches = (data, [...handlers]) =>
     return handler;
   }, null);
 
-const executeHandler = (handler, data, hooks) =>
-  Promise.resolve().then(() => handler.handler(data, hooks));
+const executeHandler = ({ handler }, data, hooks) => {
+  return Promise
+    .resolve()
+    .then(
+      () => handler(
+        data,
+        {
+          ...hooks,
+          useMeta: (...args) => {
+            if (args.length > 0) {
+              const [arg] = args;
+              console.warn('dont know ho to set meta');
+              return undefined;
+            }
+            console.warn('dont know how to return meta');
+            return Math.random();
+          },
+        },
+      ),
+    );
+};
 
 const recurseApply = (data, stage, hooks) =>
   Promise.resolve().then(() => {

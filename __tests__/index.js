@@ -366,7 +366,7 @@ it("should be possible to access global state from the handler level", () => {
 });
 
 it("should be possible to declare and consume meta to permit the propagation of hidden properties", () => {
-  const numericHandler = () => handle => => handle(
+  const numericHandler = () => handle => handle(
     'Number',
     (input, { useMeta }) => {
       useMeta('numeric');
@@ -380,10 +380,13 @@ it("should be possible to declare and consume meta to permit the propagation of 
       return !input;
     },
   );
-  const metaHandler = () => handle => (
-    '*',
-    (input, { useMeta }) => useMeta(),
-  );
+
+  const metaHandler = () => handle => handle('*', (input, { useMeta }) => useMeta());
+
+  const app = compose()
+    .use(numericHandler());
+
+  app(3);
 
   //const app = compose()
   //  .use(
