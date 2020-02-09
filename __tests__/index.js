@@ -288,23 +288,23 @@ it("should be possible to execute some middleware only once", () => {
   expect(result3).toEqual(true);
 });
 
-it("should be possible to implement functional global state", async () => {
-  const INCREMENT = "reducer/INCREMENT";
-  const increment = () => ({ type: INCREMENT });
+const INCREMENT = "reducer/INCREMENT";
+const increment = () => ({ type: INCREMENT });
 
-  const buildStore = () => {
-    const initialState = Map({ cnt: 0 });
-    const reducer = (state = initialState, { type, ...extras }) => {
-      switch (type) {
-        case INCREMENT:
-          return state.set("cnt", state.get("cnt") + 1);
-        default:
-          return state;
-      }
-    };
-    return createStore(reducer);
+const buildStore = () => {
+  const initialState = Map({ cnt: 0 });
+  const reducer = (state = initialState, { type, ...extras }) => {
+    switch (type) {
+      case INCREMENT:
+        return state.set("cnt", state.get("cnt") + 1);
+      default:
+        return state;
+    }
   };
+  return createStore(reducer);
+};
 
+it("should be possible to implement functional global state", async () => {
   const app = compose(buildStore).use("*", () => true);
 
   const app2 = compose(buildStore, { sync: false })
@@ -340,4 +340,27 @@ it("should be possible to implement functional global state", async () => {
   expect(c).toEqual(9);
 
   expect(app3()).toEqual(1);
+});
+
+it("should be possible to access global state from the handler level", () => {
+  const app = compose(buildStore).use(handle =>
+    handle("*", (_, { useGlobal }) =>
+      useGlobal()
+        .getState()
+        .get("cnt")
+    )
+  );
+
+  expect(app()).toEqual(0);
+
+  const app2 = compose(buildStore).use((handle, { dispatch }) => {
+    dispatch(increment());
+    return handle("*", (_, { useGlobal }) =>
+      useGlobal()
+        .getState()
+        .get("cnt")
+    );
+  });
+
+  expect(app2()).toEqual(1);
 });

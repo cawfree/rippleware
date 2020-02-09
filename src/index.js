@@ -12,13 +12,13 @@ const isArrayOfHandlers = e =>
 // TODO: This is naive.
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
-const recurseUse = e => {
+const recurseUse = (e, globalState) => {
   const handlers = [];
   const handle = (matches, handler) => handlers.push({ matches, handler });
   if (Array.isArray(e)) {
-    return e.reduce((arr, f) => [...arr, recurseUse(f)], []);
+    return e.reduce((arr, f) => [...arr, recurseUse(f, globalState)], []);
   } else if (typeCheck("Function", e)) {
-    e(handle);
+    e(handle, globalState);
   } else if (typeCheck("RegExp{source:String}", e)) {
     handle("*", input => jsonpath.query(input, regExpToPath(e)));
   }
@@ -223,7 +223,7 @@ export const compose = (...args) => {
         "A call to use() must specify at least a single handler."
       );
     } else {
-      mwr.push(recurseUse(simplify(args)));
+      mwr.push(recurseUse(simplify(args), globalState));
     }
     return r;
   };
