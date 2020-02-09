@@ -71,7 +71,7 @@ const findHandlerByMatches = (data, [...handlers]) =>
     return handler;
   }, null);
 
-const executeHandler = ({ handler }, data, hooks) => {
+const executeHandler = ({ handler }, data, hooks, metaIn) => {
   let meta = undefined;
   return Promise
     .resolve()
@@ -84,11 +84,9 @@ const executeHandler = ({ handler }, data, hooks) => {
             if (args.length === 1) {
               const [arg] = args;
               meta = arg;
-              console.log('set meta to',meta);
               return undefined;
             } else if (args.length === 0) {
-              console.warn('dont know how to return meta');
-              return Math.random();
+              return metaIn;
             }
             throw new Error('A call to useMeta() must contain only one or zero arguments.');
           },
@@ -117,15 +115,10 @@ const collectResults = (stage, e) => {
   return [results[0], metas[0]];
 };
 
-const recurseApply = (data, stage, hooks) =>
+const recurseApply = (data, stage, hooks, meta) =>
   Promise.resolve().then(() => {
     if (typeCheck("Function", stage)) {
       return Promise.resolve().then(() => stage(data))
-        .then(
-          (result) => {
-            return result;
-          },
-        )
         .then(result => [result, undefined]);
     } else if (!Array.isArray(stage) || stage.length === 0) {
       return Promise.reject(new Error("A call to use() must define at least a single handler."));
@@ -135,12 +128,7 @@ const recurseApply = (data, stage, hooks) =>
       const [...handlers] = stage[0];
       const handler = findHandlerByMatches(data, handlers);
       if (handler) {
-        return executeHandler(handler, data, hooks)
-          .then(
-            (e) => {
-              return e;
-            },
-          );
+        return executeHandler(handler, data, hooks, meta);
       }
       return Promise.reject(`Could not find a valid matcher for ${data}.`);
     } else if (data.length >= stage.length) {
@@ -150,16 +138,12 @@ const recurseApply = (data, stage, hooks) =>
             const datum = data[i];
             const handler = findHandlerByMatches(datum, s);
             if (handler) {
-              return executeHandler(handler, datum, hooks);
+              return executeHandler(handler, datum, hooks, meta);
             }
             return Promise.reject(new Error(`Could not find a valid matcher for ${datum}.`));
           }
-          return recurseApply(data[i], s, hooks)
-            .then(
-              (e) => {
-                return e;
-              },
-            );
+          // TODO: how to delegate meta?
+          return recurseApply(data[i], s, hooks, meta);
         })
       )
       .then(e => collectResults(stage, e));
@@ -171,8 +155,8 @@ const executeMiddleware = (mwr, hooks, input) =>
   mwr.reduce(
     (p, stage, i) =>
       p.then(dataFromLastStage => {
-        const [result] = dataFromLastStage;
-        return recurseApply(result, stage, hooks)
+        const [result, meta] = dataFromLastStage;
+        return recurseApply(result, stage, hooks, meta)
           .then(
             (e) => {
               return e;

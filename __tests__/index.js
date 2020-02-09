@@ -384,25 +384,30 @@ it("should be possible to declare and consume meta to permit the propagation of 
   const metaHandler = () => handle => handle('*', (input, { useMeta }) => useMeta());
 
   const app = compose()
-    .use(numericHandler());
+    .use(numericHandler())
+    .use(metaHandler());
 
-  app(3);
+  expect(app(3)).toEqual('numeric');
 
-  //const app = compose()
-  //  .use(
-  //    handle => handle(
-  //      '*', (input, { useMeta }) => {
-  //        useMeta({ someStuff: true });
-  //        //useOutputMeta('inverter');
-  //        return !input;
-  //      },
-  //    ),
-  //  )
-  //  .use(
-  //    '*', (input, { useMeta }) => {
-  //      const valueIn = useMeta();
-  //      //const result = useInputMeta();
-  //      return result;
-  //    },
-  //  );
+  const app2 = compose()
+    .use(booleanHandler())
+    .use(metaHandler());
+  expect(app2(true)).toEqual('boolean');
+
+  const app3 = compose()
+    .use(numericHandler(), booleanHandler())
+    .use(metaHandler());
+
+  expect(app3(3, true)).toEqual(['numeric', 'boolean']);
+
+  const app4 = compose()
+    .use('*', (_, { useMeta }) => useMeta(1, 1));
+
+  expect(() => app4())
+    .toThrow();
+
+  const app5 = compose()
+    .use('*', (_, { useMeta }) => useMeta());
+
+  expect(app5('This should be undefined.')).toEqual(undefined);
 });
