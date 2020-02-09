@@ -1,6 +1,6 @@
 {
   "name": "rippleware",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "🚣 A middleware-inspired toolbox that promotes function extensibility.",
   "main": "dist",
   "repository": "https://github.com/cawfree/rippleware",
