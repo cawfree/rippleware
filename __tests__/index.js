@@ -414,86 +414,76 @@ it("should be possible to declare and consume meta to permit the propagation of 
 
 it("should be able to intuitively nest middleware layers", () => {
   const app = compose()
-    .use('*', b => !b)
-    .use(
-      compose()
-        .use('*', b => !b),
-    );
+    .use("*", b => !b)
+    .use(compose().use("*", b => !b));
   expect(app()).toEqual(false);
   expect(app(true)).toEqual(true);
   expect(app(false)).toEqual(false);
 
   const app2 = compose(buildStore)
-    .use('*', (input, { useGlobal }) => {
+    .use("*", (input, { useGlobal }) => {
       const { dispatch } = useGlobal();
       dispatch(increment());
       return !input;
     })
     .use(
-      compose()
-        .use('*', (input, { useGlobal }) => {
-          return useGlobal().getState().get('cnt');
-        }),
+      compose().use("*", (input, { useGlobal }) => {
+        return useGlobal()
+          .getState()
+          .get("cnt");
+      })
     );
-  
+
   expect(app2()).toEqual(1);
 
   const app3 = compose()
-    .use('*', (input, { useMeta }) => {
-      useMeta({ hello: 'world' });
+    .use("*", (input, { useMeta }) => {
+      useMeta({ hello: "world" });
       return !input;
     })
     .use(
-      compose()
-        .use('*', (input, { useMeta }) => {
-          return useMeta();
-        }),
+      compose().use("*", (input, { useMeta }) => {
+        return useMeta();
+      })
     );
 
-  expect(app3()).toEqual({ hello: 'world' });
+  expect(app3()).toEqual({ hello: "world" });
 
+  const subApp = compose().use("*", input => !input);
 
-  const subApp = compose()
-    .use('*', input => !input);
-
-  const app4 = compose()
-    .use(subApp, subApp);
+  const app4 = compose().use(subApp, subApp);
 
   expect(app4(true, false)).toEqual([false, true]);
 
-  const applyMeta1 = () => handle => handle(
-    '*', (input, { useMeta }) => {
+  const applyMeta1 = () => handle =>
+    handle("*", (input, { useMeta }) => {
       useMeta(1);
       return !input;
-    },
-  );
+    });
 
-  const applyMeta2 = () => handle => handle(
-    '*', (input, { useMeta }) => {
+  const applyMeta2 = () => handle =>
+    handle("*", (input, { useMeta }) => {
       useMeta(2);
       return !input;
-    },
-  );
+    });
 
   // TODO: Meta should be segmented!
   const app5 = compose()
     .use(applyMeta1(), applyMeta2())
     .use(
-      compose()
-        .use('*', (input, { useMeta }) => {
-          return useMeta();
-        }),
-      compose()
-        .use('*', (input, { useMeta }) => {
-          return useMeta();
-        }),
+      compose().use("*", (input, { useMeta }) => {
+        return useMeta();
+      }),
+      compose().use("*", (input, { useMeta }) => {
+        return useMeta();
+      })
     );
 
-  const app6 = compose(buildStore)
-    .use(
-      compose(() => ({ hello: 'world' }))
-        .use('*', (input, { useGlobal }) => useGlobal()),
-    );
+  const app6 = compose(buildStore).use(
+    compose(() => ({ hello: "world" })).use("*", (input, { useGlobal }) =>
+      useGlobal()
+    )
+  );
 
-  expect(app6()).toEqual({ hello: 'world' });
+  expect(app6()).toEqual({ hello: "world" });
 });

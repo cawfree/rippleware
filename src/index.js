@@ -22,7 +22,8 @@ const recurseUse = (e, globalState) => {
     // TODO: check there is no overlap between copies of meta
     const sub = klona(e);
     handle("*", (input, { useMeta, useGlobal }) => {
-      sub.globalState = (sub.globalState === undefined) ? useGlobal() : sub.globalState;
+      sub.globalState =
+        sub.globalState === undefined ? useGlobal() : sub.globalState;
       sub.inputMeta = useMeta();
       return sub(input);
     });
@@ -218,7 +219,6 @@ const init = (...args) => {
 };
 
 export const compose = (...args) => {
-
   const mwr = [];
   let currentHook = 0;
 
@@ -267,10 +267,10 @@ export const compose = (...args) => {
       wares,
       {
         ...hooks,
-        useGlobal: () => r.globalState,
+        useGlobal: () => r.globalState
       },
-      (input.length === 0) ? undefined : (input.length === 1 ? input[0] : input),
-      r.inputMeta,
+      input.length === 0 ? undefined : input.length === 1 ? input[0] : input,
+      r.inputMeta
     );
     if (sync) {
       const [result] = forceSync(p);
