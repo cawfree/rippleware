@@ -451,4 +451,44 @@ it("should be able to intuitively nest middleware layers", () => {
     );
 
   expect(app3()).toEqual({ hello: 'world' });
+
+
+  const subApp = compose()
+    .use('*', input => !input);
+
+  const app4 = compose()
+    .use(subApp, subApp);
+
+  expect(app4(true, false)).toEqual([false, true]);
+
+  const applyMeta1 = () => handle => handle(
+    '*', (input, { useMeta }) => {
+      useMeta(1);
+      return !input;
+    },
+  );
+
+  const applyMeta2 = () => handle => handle(
+    '*', (input, { useMeta }) => {
+      useMeta(2);
+      return !input;
+    },
+  );
+
+  // meta should be segmented, if we can...
+  const app5 = compose()
+    .use(applyMeta1(), applyMeta2())
+    .use(
+      compose()
+        .use('*', (input, { useMeta }) => {
+          return useMeta();
+        }),
+      compose()
+        .use('*', (input, { useMeta }) => {
+          return useMeta();
+        }),
+    );
+
+  console.log(app5(true, false));
+
 });

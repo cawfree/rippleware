@@ -261,10 +261,10 @@ export const compose = (...args) => {
       );
     };
 
+    const wares = mwr.map(e => recurseUse(simplify(e), r.globalState));
+
     const p = executeMiddleware(
-      mwr.map(
-        e => recurseUse(simplify(e), r.globalState),
-      ),
+      wares,
       {
         ...hooks,
         useGlobal: () => r.globalState,
