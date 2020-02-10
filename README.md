@@ -35,6 +35,17 @@ yarn add rippleware
 
 ## 👀 Overview
 
+Table of Contents
+  - 1. [Hello, world!](https://github.com/cawfree/rippleware#1-hello-world)
+  - 2. [Routing](https://github.com/cawfree/rippleware#2-routing)
+  - 3. [Indexing](https://github.com/cawfree/rippleware#3-indexing)
+    - 3.1 [Array Indexing](https://github.com/cawfree/rippleware#31-array-indexing)
+    - 3.2 [Object Indexing](https://github.com/cawfree/rippleware#32-object-indexing)
+  - 4. [Hooks](https://github.com/cawfree/rippleware#4-hooks)
+    - 4.1 [`useGlobal`](https://github.com/cawfree/rippleware#41-useglobal)
+    - 4.2 [`useMeta`](https://github.com/cawfree/rippleware#42-usemeta)
+  - 5. [Nesting](https://github.com/cawfree/rippleware#6-nesting)
+
 ### 1. Hello, world!
 
 The only entity that is exported from rippleware is `compose`, which we can `use()` to define each step in our function:
@@ -269,7 +280,7 @@ const app = compose()
 app(1); // 2
 ```
 
-### 6. Nesting
+### 5. Nesting
 It's also possible to _nest_ rippleware within middleware layers. Check the example below:
 
 ```javascript
