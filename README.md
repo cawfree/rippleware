@@ -35,7 +35,7 @@ yarn add rippleware
 
 ## 👀 Overview
 
-📖 Table of Contents
+### 📖 Table of Contents
 - [Hello, world!](https://github.com/cawfree/rippleware#1-hello-world)
 - [Routing](https://github.com/cawfree/rippleware#2-routing)
 - [Indexing](https://github.com/cawfree/rippleware#3-indexing)
