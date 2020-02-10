@@ -1,6 +1,7 @@
 import { typeCheck } from "type-check";
 import jsonpath from "jsonpath";
 import deepEqual from "deep-equal";
+import klona from "klona";
 
 const isArrayOfHandlers = e =>
   Array.isArray(e) &&
@@ -17,6 +18,14 @@ const recurseUse = (e, globalState) => {
   const handle = (matches, handler) => handlers.push({ matches, handler });
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f, globalState)], []);
+  } else if (typeCheck("Function", e) && typeCheck("Function", e.use)) {
+    // TODO: check there is no overlap between copies of meta
+    const sub = klona(e);
+    handle("*", (input, { useMeta, useGlobal }) => {
+      sub.globalState = (sub.globalState === undefined) ? useGlobal() : sub.globalState;
+      sub.inputMeta = useMeta();
+      return sub(input);
+    });
   } else if (typeCheck("Function", e)) {
     e(handle, globalState);
   } else if (typeCheck("RegExp{source:String}", e)) {
@@ -159,7 +168,7 @@ const recurseApply = (data, stage, hooks, meta) =>
     );
   });
 
-const executeMiddleware = (mwr, hooks, input) =>
+const executeMiddleware = (mwr, hooks, input, inputMeta) =>
   mwr.reduce(
     (p, stage, i) =>
       p.then(dataFromLastStage => {
@@ -168,7 +177,7 @@ const executeMiddleware = (mwr, hooks, input) =>
           return e;
         });
       }),
-    Promise.resolve([input, undefined])
+    Promise.resolve([input, inputMeta])
   );
 
 export const forceSync = promise => {
@@ -254,13 +263,14 @@ export const compose = (...args) => {
 
     const p = executeMiddleware(
       mwr.map(
-        e => recurseUse(simplify(e), globalState),
+        e => recurseUse(simplify(e), r.globalState),
       ),
       {
         ...hooks,
-        useGlobal: () => globalState,
+        useGlobal: () => r.globalState,
       },
-      input.length === 1 ? input[0] : input
+      (input.length === 0) ? undefined : (input.length === 1 ? input[0] : input),
+      r.inputMeta,
     );
     if (sync) {
       const [result] = forceSync(p);
@@ -277,6 +287,10 @@ export const compose = (...args) => {
     mwr.push(args);
     return r;
   };
+
+  r.globalState = globalState;
+  r.inputMeta = undefined;
+
   return r;
 };
 

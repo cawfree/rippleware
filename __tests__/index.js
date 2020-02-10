@@ -411,3 +411,44 @@ it("should be possible to declare and consume meta to permit the propagation of 
 
   expect(() => app6()).toThrow();
 });
+
+it("should be able to intuitively nest middleware layers", () => {
+  const app = compose()
+    .use('*', b => !b)
+    .use(
+      compose()
+        .use('*', b => !b),
+    );
+  expect(app()).toEqual(false);
+  expect(app(true)).toEqual(true);
+  expect(app(false)).toEqual(false);
+
+  const app2 = compose(buildStore)
+    .use('*', (input, { useGlobal }) => {
+      const { dispatch } = useGlobal();
+      dispatch(increment());
+      return !input;
+    })
+    .use(
+      compose()
+        .use('*', (input, { useGlobal }) => {
+          return useGlobal().getState().get('cnt');
+        }),
+    );
+  
+  expect(app2()).toEqual(1);
+
+  const app3 = compose()
+    .use('*', (input, { useMeta }) => {
+      useMeta({ hello: 'world' });
+      return !input;
+    })
+    .use(
+      compose()
+        .use('*', (input, { useMeta }) => {
+          return useMeta();
+        }),
+    );
+
+  expect(app3()).toEqual({ hello: 'world' });
+});
