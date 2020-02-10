@@ -209,18 +209,14 @@ const init = (...args) => {
 };
 
 export const compose = (...args) => {
-  const [globalState, options] = init(...args);
 
   const mwr = [];
-  const { sync } = options;
-
   let currentHook = 0;
 
   // https://www.netlify.com/blog/2019/03/11/deep-dive-how-do-react-hooks-really-work/
   const { ...hooks } = (function() {
     const hooks = [];
     return {
-      useGlobal: () => globalState,
       useEffect(callback, depArray) {
         const hasNoDeps = !depArray;
         const deps = hooks[currentHook];
@@ -243,8 +239,12 @@ export const compose = (...args) => {
     };
   })();
 
+  const [globalState, options] = init(...args);
+
   function r(...input) {
     currentHook = 0;
+
+    const { sync } = options;
 
     r.use = () => {
       throw new Error(
@@ -253,8 +253,13 @@ export const compose = (...args) => {
     };
 
     const p = executeMiddleware(
-      mwr,
-      hooks,
+      mwr.map(
+        e => recurseUse(simplify(e), globalState),
+      ),
+      {
+        ...hooks,
+        useGlobal: () => globalState,
+      },
       input.length === 1 ? input[0] : input
     );
     if (sync) {
@@ -268,9 +273,8 @@ export const compose = (...args) => {
       throw new Error(
         "A call to use() must specify at least a single handler."
       );
-    } else {
-      mwr.push(recurseUse(simplify(args), globalState));
     }
+    mwr.push(args);
     return r;
   };
   return r;
