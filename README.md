@@ -44,7 +44,7 @@ yarn add rippleware
 - [Hooks](https://github.com/cawfree/rippleware#4-hooks)
   - [`useGlobal`](https://github.com/cawfree/rippleware#41-useglobal)
   - [`useMeta`](https://github.com/cawfree/rippleware#42-usemeta)
-5. [Nesting](https://github.com/cawfree/rippleware#6-nesting)
+- [Nesting](https://github.com/cawfree/rippleware#5-nesting)
 
 ### 1. Hello, world!
 
