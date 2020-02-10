@@ -59,6 +59,19 @@ It's important to note that your handler functions can operate _asynchronously_ 
 **Note**:
 If you'd prefer, you can opt out of synchronous behaviour by passing `{ sync: false }` to your call to `compose()`.
 
+If this looks a little too verbose for you, we agree. That's why it's also possible to use  **shorthand** notation for layers which only expect a single kind of data, which are the common case:
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use('*', input => input + 1);
+
+console.log(app(2)); // 3
+```
+
+Much easier!
+
 ### 2. Routing
 
 You can make multiple calls to `handle` within a single middleware; these define the different operations that can be performed based upon the shape of the input data. Since each handler is compared against in the order they were defined, care should be taken to ensure that multiple handler allocations should use increasingly generalized checkers.
@@ -256,19 +269,34 @@ const app = compose()
 app(1); // 2
 ```
 
-### 5. Shorthand Notation
-Finally, now that we're familiar with the underpinnings of rippleware, you'll find it useful to know that it's possible to directly declare handler functions inline:
+### 6. Nesting
+It's also possible to _nest_ rippleware within middleware layers. Check the example below:
 
 ```javascript
 import compose from 'rippleware';
 
 const app = compose()
-  .use('*', input => input + 1);
+  .use(
+    compose()
+      .use('Boolean', b => !b),
+  );
 
-console.log(app(2)); // 3
+app(true); // false
 ```
 
-This format of handler definition assumes a single default handler of your middleware arguments.
+This allows all input data, irrespective of routing, into the nested middleware. To permit data indexing, nested middleware components can also be stacked horizontally:
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use(
+    compose().use('Boolean', b => !b),
+    compose().use('Boolean', b => !b),
+  );
+
+app(true, false); // [false, true]
+```
 
 ## 🎒 Builtins
 
