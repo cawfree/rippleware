@@ -288,6 +288,7 @@ export const compose = (...args) => {
     return r;
   };
 
+  // TODO: Is there any way to prevent access to unprivileged writers?
   r.globalState = globalState;
   r.inputMeta = undefined;
 

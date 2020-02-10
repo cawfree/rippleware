@@ -475,7 +475,7 @@ it("should be able to intuitively nest middleware layers", () => {
     },
   );
 
-  // meta should be segmented, if we can...
+  // TODO: Meta should be segmented!
   const app5 = compose()
     .use(applyMeta1(), applyMeta2())
     .use(
@@ -489,6 +489,11 @@ it("should be able to intuitively nest middleware layers", () => {
         }),
     );
 
-  console.log(app5(true, false));
+  const app6 = compose(buildStore)
+    .use(
+      compose(() => ({ hello: 'world' }))
+        .use('*', (input, { useGlobal }) => useGlobal()),
+    );
 
+  expect(app6()).toEqual({ hello: 'world' });
 });
