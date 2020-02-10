@@ -35,16 +35,16 @@ yarn add rippleware
 
 ## 👀 Overview
 
-Table of Contents
-  - 1. [Hello, world!](https://github.com/cawfree/rippleware#1-hello-world)
-  - 2. [Routing](https://github.com/cawfree/rippleware#2-routing)
-  - 3. [Indexing](https://github.com/cawfree/rippleware#3-indexing)
-    - 3.1 [Array Indexing](https://github.com/cawfree/rippleware#31-array-indexing)
-    - 3.2 [Object Indexing](https://github.com/cawfree/rippleware#32-object-indexing)
-  - 4. [Hooks](https://github.com/cawfree/rippleware#4-hooks)
-    - 4.1 [`useGlobal`](https://github.com/cawfree/rippleware#41-useglobal)
-    - 4.2 [`useMeta`](https://github.com/cawfree/rippleware#42-usemeta)
-  - 5. [Nesting](https://github.com/cawfree/rippleware#6-nesting)
+📖 Table of Contents
+1. [Hello, world!](https://github.com/cawfree/rippleware#1-hello-world)
+2. [Routing](https://github.com/cawfree/rippleware#2-routing)
+3. [Indexing](https://github.com/cawfree/rippleware#3-indexing)
+  3.1 [Array Indexing](https://github.com/cawfree/rippleware#31-array-indexing)
+  3.2 [Object Indexing](https://github.com/cawfree/rippleware#32-object-indexing)
+4. [Hooks](https://github.com/cawfree/rippleware#4-hooks)
+  4.1 [`useGlobal`](https://github.com/cawfree/rippleware#41-useglobal)
+  4.2 [`useMeta`](https://github.com/cawfree/rippleware#42-usemeta)
+5. [Nesting](https://github.com/cawfree/rippleware#6-nesting)
 
 ### 1. Hello, world!
 
