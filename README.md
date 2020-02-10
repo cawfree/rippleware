@@ -303,7 +303,7 @@ import compose from 'rippleware';
 const app = compose()
   .use(
     compose().use('Boolean', b => !b),
-    compose().use('Boolean', b => !b),
+    compose().use('Boolean', b => Promise.resolve(!b)),
   );
 
 app(true, false); // [false, true]
