@@ -293,7 +293,7 @@ const app = compose()
   .use('*', (_, { useTopology }) => useTopology())
   .use('*', b => b)
 
-app(); // [2, 3] (i.e. index #2 of a total 3 layers)
+app(); // [2, 4] (i.e. index #2 of a total 4 layers)
 ```
 
 Note that a call to `useTopology` is _insular_, and only refers to the middleware position within the owning cascade:
