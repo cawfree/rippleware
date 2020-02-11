@@ -280,6 +280,37 @@ const app = compose()
 app(1); // 2
 ```
 
+#### 4.3 `useTopology`
+The `useTopology` hook can be used to determine your middleware's position within the function cascade. This can be useful to perform conditional functionality dependent upon your middleware's locality of execution:
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use('*', b => !b)
+  .use('*', b => !b)
+  .use('*', (_, { useTopology }) => useTopology())
+  .use('*', b => b)
+
+app(); // [2, 3] (i.e. index #2 of a total 3 layers)
+```
+
+Note that a call to `useTopology` is _insular_, and only refers to the middleware position within the owning cascade:
+
+```javascript
+import compose from 'rippleware';
+
+const app = compose()
+  .use('*', b => !b)
+  .use(
+    compose()
+      .use('*', (_, { useTopology }) => useTopology()),
+  )
+  .use('*', b => !b);
+
+app(); // [0, 1] (index #0 in the nested single-layer rippleware)
+```
+
 ### 5. Nesting
 It's also possible to _nest_ rippleware within middleware layers. Check the example below:
 

@@ -487,3 +487,19 @@ it("should be able to intuitively nest middleware layers", () => {
 
   expect(app6()).toEqual({ hello: "world" });
 });
+
+it("should be possible to determine the topology of execution", () => {
+  const app = compose()
+    .use("*", b => !b)
+    .use("*", b => !b)
+    .use("*", (input, { useTopology }) => useTopology());
+
+  expect(app()).toEqual([2, 3]);
+
+  const app2 = compose()
+    .use("*", b => !b)
+    .use(compose().use("*", (_, { useTopology }) => useTopology()))
+    .use("*", b => b);
+
+  expect(app2()).toEqual([0, 1]);
+});
