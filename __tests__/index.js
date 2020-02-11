@@ -503,3 +503,18 @@ it("should be possible to determine the topology of execution", () => {
 
   expect(app2()).toEqual([0, 1]);
 });
+
+it("should be possible for nested meta to propagate back into the parent execution context", () => {
+  const metaApp = () =>
+    compose().use("Boolean", (input, { useMeta }) => {
+      useMeta("hello");
+      return !input;
+    });
+
+  const app = compose()
+    .use(metaApp(), metaApp(), metaApp())
+    .use("*", (_, { useMeta }) => useMeta());
+
+  expect(app(true, false, true)).toEqual(["hello", "hello", "hello"]);
+  expect(app(false, true, false)).toEqual(["hello", "hello", "hello"]);
+});

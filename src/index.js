@@ -25,7 +25,9 @@ const recurseUse = (e, globalState) => {
       sub.globalState =
         sub.globalState === undefined ? useGlobal() : sub.globalState;
       sub.inputMeta = useMeta();
-      return sub(input);
+      const result = sub(input);
+      useMeta(sub.outputMeta);
+      return result;
     });
   } else if (typeCheck("Function", e)) {
     e(handle, globalState);
@@ -280,10 +282,14 @@ export const compose = (...args) => {
       r.inputMeta
     );
     if (sync) {
-      const [result] = forceSync(p);
+      const [result, outputMeta] = forceSync(p);
+      r.outputMeta = outputMeta;
       return result;
     }
-    return p.then(([result]) => result);
+    return p.then(([result, outputMeta]) => {
+      r.outputMeta = outputMeta;
+      return result;
+    });
   }
   r.use = (...args) => {
     if (args.length === 0) {
@@ -298,6 +304,7 @@ export const compose = (...args) => {
   // TODO: Is there any way to prevent access to unprivileged writers?
   r.globalState = globalState;
   r.inputMeta = undefined;
+  r.outputMeta = undefined;
 
   return r;
 };
