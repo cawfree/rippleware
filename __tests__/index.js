@@ -531,8 +531,7 @@ it("should be possible to print debug information about a given state", () => {
 });
 
 it("should permit noop operations", () => {
-  const app = compose()
-    .use(handle => handle('Number', i => i + 1), noop());
+  const app = compose().use(handle => handle("Number", i => i + 1), noop());
 
   expect(app(1, 1)).toEqual([2, 1]);
 });
