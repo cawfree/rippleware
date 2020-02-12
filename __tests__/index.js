@@ -3,7 +3,7 @@ import "@babel/polyfill";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { justOnce, debug } from "../src";
+import compose, { justOnce, print, noop } from "../src";
 
 const addTwo = () => handle =>
   handle("[Number]", next => {
@@ -528,4 +528,11 @@ it("should be possible to print debug information about a given state", () => {
     .use(print(), print());
 
   expect(app(false)).toEqual([false, true]);
+});
+
+it("should permit noop operations", () => {
+  const app = compose()
+    .use(handle => handle('Number', i => i + 1), noop());
+
+  expect(app(1, 1)).toEqual([2, 1]);
 });

@@ -328,4 +328,6 @@ export const print = () => burden =>
     return input;
   });
 
+export const noop = () => burden => burden('*', input => input);
+
 export default compose;
