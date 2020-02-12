@@ -322,4 +322,10 @@ export const justOnce = (...args) => burden =>
     return Promise.resolve(input);
   });
 
+export const print = () => burden =>
+  burden("*", (input, { useMeta, useTopology }) => {
+    console.log({ input, meta: useMeta(), topology: useTopology() });
+    return input;
+  });
+
 export default compose;

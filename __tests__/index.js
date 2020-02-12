@@ -3,7 +3,7 @@ import "@babel/polyfill";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { justOnce } from "../src";
+import compose, { justOnce, debug } from "../src";
 
 const addTwo = () => handle =>
   handle("[Number]", next => {
@@ -517,4 +517,15 @@ it("should be possible for nested meta to propagate back into the parent executi
 
   expect(app(true, false, true)).toEqual(["hello", "hello", "hello"]);
   expect(app(false, true, false)).toEqual(["hello", "hello", "hello"]);
+});
+
+it("should be possible to print debug information about a given state", () => {
+  const app = compose()
+    .use("Boolean", (input, { useMeta }) => {
+      useMeta("Some meta information.");
+      return [input, !input];
+    })
+    .use(print(), print());
+
+  expect(app(false)).toEqual([false, true]);
 });
