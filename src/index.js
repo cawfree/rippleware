@@ -21,11 +21,11 @@ const recurseUse = (e, globalState) => {
   } else if (typeCheck("Function", e) && typeCheck("Function", e.use)) {
     // TODO: check there is no overlap between copies of meta
     const sub = klona(e);
-    handle("*", (input, { useMeta, useGlobal }) => {
+    handle("*", async (input, { useMeta, useGlobal }) => {
       sub.globalState =
         sub.globalState === undefined ? useGlobal() : sub.globalState;
       sub.inputMeta = useMeta();
-      const result = sub(input);
+      const result = await sub(input);
       useMeta(sub.outputMeta);
       return result;
     });
@@ -190,39 +190,14 @@ const executeMiddleware = (mwr, hooks, input, inputMeta) =>
     Promise.resolve([input, inputMeta])
   );
 
-export const forceSync = promise => {
-  const { loopWhile } = require("deasync");
-  const result = { error: undefined, data: undefined, done: false };
-
-  promise
-    .then(data => Object.assign(result, { data, done: true }))
-    .catch(error => Object.assign(result, { error, done: true }));
-
-  loopWhile(() => !result.done);
-
-  const { error, data } = result;
-
-  if (error) {
-    throw new Error(error);
-  }
-
-  return data;
-};
-
 const defaultOptions = Object.freeze({ sync: true });
 
 const init = (...args) => {
   if (args.length === 0) {
-    return [undefined, defaultOptions];
-  } else if (typeCheck("[{sync:Boolean}]", args) && args.length === 1) {
-    const [options] = args;
-    return [undefined, options];
+    return [undefined];
   } else if (typeCheck("[Function]", args) && args.length === 1) {
     const [func] = args;
-    return [func(), defaultOptions];
-  } else if (typeCheck("(Function, {sync:Boolean})", args)) {
-    const [func, ...extras] = args;
-    return [func(), ...extras];
+    return [func()];
   }
   throw new Error("Invalid options.");
 };
@@ -257,12 +232,10 @@ export const compose = (...args) => {
     };
   })();
 
-  const [globalState, options] = init(...args);
+  const [globalState] = init(...args);
 
   function r(...input) {
     currentHook = 0;
-
-    const { sync } = options;
 
     r.use = () => {
       throw new Error(
@@ -281,11 +254,6 @@ export const compose = (...args) => {
       input.length === 0 ? undefined : input.length === 1 ? input[0] : input,
       r.inputMeta
     );
-    if (sync) {
-      const [result, outputMeta] = forceSync(p);
-      r.outputMeta = outputMeta;
-      return result;
-    }
     return p.then(([result, outputMeta]) => {
       r.outputMeta = outputMeta;
       return result;
@@ -312,7 +280,7 @@ export const compose = (...args) => {
 export const justOnce = (...args) => burden =>
   burden("*", (input, { useState, useGlobal }) => {
     const [app] = useState(() =>
-      compose(() => useGlobal(), { sync: false }).use(...args)
+      compose(useGlobal).use(...args)
     );
     const [once, setOnce] = useState(false);
     if (once === false) {

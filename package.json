@@ -1,6 +1,6 @@
 {
   "name": "rippleware",
-  "version": "0.0.21",
+  "version": "0.1.0-alpha.0",
   "description": "🚣 A middleware-inspired toolbox that promotes function extensibility.",
   "main": "dist",
   "repository": "https://github.com/cawfree/rippleware",
@@ -36,7 +36,6 @@
     "uglify-js": "^3.7.6"
   },
   "dependencies": {
-    "deasync": "^0.1.19",
     "deep-equal": "^2.0.1",
     "jsonpath": "^1.0.2",
     "klona": "^1.1.1",

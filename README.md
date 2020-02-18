@@ -13,8 +13,6 @@ It's like a [Factory Pattern](https://www.dofactory.com/javascript/factory-metho
     - Define multiple routes based on [`type-check`](https://www.npmjs.com/package/type-check) rigorous declaration syntax.
   - Using hooks, you can persist and react to dynamics.
     - You can cache and respond to middleware results from previous executions.
-  - Synchronous execution, independent of middleware asynchrony. (yes, _really_)
-    - If you're tired of `async`/`await` or `.then()`, you [don't have to use them at all](https://www.npmjs.com/package/deasync).
   - A friendly interface. 👋
     - If you know [middleware](https://expressjs.com/en/guide/writing-middleware.html), then you know rippleware.
     - Intuitive indexing enables simple operation on deeply-nested propagated data.
@@ -31,6 +29,21 @@ Using [`yarn`]():
 
 ```bash
 yarn add rippleware
+```
+
+### Breaking Changes
+
+#### 0.1.0-alpha.0
+Rippleware no longer relies upon [deasync](https://www.npmjs.com/package/deasync) to force sequential execution. Now by default, all invocations are asynchronous, and no instanation options are permitted to be specified:
+
+```diff
+import compose from "rippleware";
+
++ const app = compose({ sync: true }).use("*", () => null);
+- const app = compose().use("*", () => null);
+
++ const result = await(app());
+- const result = app();
 ```
 
 ## 👀 Overview
@@ -59,7 +72,7 @@ const app = compose()
   
   //.use().use().use()...
 
-console.log(app()); // "Hello, world!"
+console.log(await app()); // "Hello, world!"
 ```
 
 Let's break this down. When make a call to use, we're expected to pass a `Function` that accepts a single argument, `handle`, which is used to define all of the routes for that step in your middleware based upon the input data shape. Here, we use the asterisk (`*`) to accept any data whatsoever. Therefore, when we make a call to `app()` with undefined arguments, rippleware routes the data successfully to the handler.
@@ -79,7 +92,7 @@ import compose from 'rippleware';
 const app = compose()
   .use('*', input => input + 1);
 
-console.log(app(2)); // 3
+console.log(await app(2)); // 3
 ```
 
 Much easier!
@@ -99,8 +112,8 @@ const app = compose()
     },
   );
 
-console.log(app('This is a string.')) // "You passed a string!"
-console.log(app({ life: 42 })) // "You didn't pass a string!"
+console.log(await app('This is a string.')) // "You passed a string!"
+console.log(await app({ life: 42 })) // "You didn't pass a string!"
 ```
 
 You don't have to define routes just based on strict type checking. You can just as easily define a **matcher function**:
@@ -131,7 +144,7 @@ const addOneToANumber = () => handle => handle("Number", n => n + 1);
 const app = compose()
   .use([addOneToANumber()]);
   
-console.log(app([2])); // 3
+console.log(await app([2])); // 3
 ```
 
 Notice that we pass an array `[2]` into our `app`, but because we use indexing on the middleware definition, it only operates on the first element of the input data. This is how we retrieve a scalar result.
@@ -147,7 +160,7 @@ import compose from 'rippleware';
 const app = compose()
   .use(/$.*.t/);
 
-console.log(app([{t: 'hi'}, {t: 'bye'}])); // ['hi', 'bye']
+console.log(await app([{t: 'hi'}, {t: 'bye'}])); // ['hi', 'bye']
 ```
 
 In addition, you can apply these expressions to multiple arguments:
@@ -159,7 +172,7 @@ const app = compose()
   .use(/$.*.t/, /$.*.s/);
 
 
-console.log(app([{t: 'hi'}], [{s: 0}])); // [['hi'], [0]]
+console.log(await app([{t: 'hi'}], [{s: 0}])); // [['hi'], [0]]
 ```
 
 Alternatively, you can choose to aggregate multiple indexes over a single parameter:
@@ -170,7 +183,7 @@ import compose from 'rippleware';
 const app = compose()
   .use([/$.*.t/, /$.*.s/]);
 
-console.log(app([{t: 'hi', s: 0}, {t: 'bye', s: 1}])); // [['hi', 'bye'], [0, 1]]
+console.log(await app([{t: 'hi', s: 0}, {t: 'bye', s: 1}])); // [['hi', 'bye'], [0, 1]]
 ```
 
 ### 4. Hooks
@@ -190,8 +203,8 @@ const app = compose()
     ),
   );
 
-app('The only value this will ever return.'); // "The only value this will ever return."
-app('Some other value')); // "The only value this will ever return."
+await app('The only value this will ever return.'); // "The only value this will ever return."
+await app('Some other value')); // "The only value this will ever return."
 ```
 
 #### 4.1 `useGlobal`
@@ -211,9 +224,9 @@ const app = compose(() => ({ value: 0 }))
   })
   .use('*', (_, { useGlobal }) => useGlobal().value);
 
-app(); // 1
-app(); // 2
-app(); // 3
+await app(); // 1
+await app(); // 2
+await app(); // 3
 ```
 
 Obviously, [mutable state sucks, and must be avoided.](https://hackernoon.com/mutability-leads-to-suffering-23671a0def6a)
@@ -248,9 +261,9 @@ const app = compose(buildStore)
   })
   .use('*', (_, { useGlobal }) => useGlobal().getState().get('value'));
 
-app(); // 1
-app(); // 2
-app(); // 3
+await app(); // 1
+await app(); // 2
+await app(); // 3
 ```
 
 This will lead to far less bugs, and greatly less scope for misuse!
@@ -278,7 +291,7 @@ const app = compose()
     },
   );
 
-app(1); // 2
+await app(1); // 2
 ```
 
 #### 4.3 `useTopology`
@@ -293,7 +306,7 @@ const app = compose()
   .use('*', (_, { useTopology }) => useTopology())
   .use('*', b => b)
 
-app(); // [2, 4] (i.e. index #2 of a total 4 layers)
+await app(); // [2, 4] (i.e. index #2 of a total 4 layers)
 ```
 
 Note that a call to `useTopology` is _insular_, and only refers to the middleware position within the owning cascade:
@@ -309,7 +322,7 @@ const app = compose()
   )
   .use('*', b => !b);
 
-app(); // [0, 1] (index #0 in the nested single-layer rippleware)
+await app(); // [0, 1] (index #0 in the nested single-layer rippleware)
 ```
 
 ### 5. Nesting
@@ -324,7 +337,7 @@ const app = compose()
       .use('Boolean', b => !b),
   );
 
-app(true); // false
+await app(true); // false
 ```
 
 This allows all input data, irrespective of routing, into the nested middleware. To permit data indexing, nested middleware components can also be stacked horizontally:
@@ -338,7 +351,7 @@ const app = compose()
     compose().use('Boolean', b => Promise.resolve(!b)),
   );
 
-app(true, false); // [false, true]
+await app(true, false); // [false, true]
 ```
 
 ## 🎒 Builtins
@@ -352,9 +365,9 @@ import compose, { justOnce } from 'rippleware';
 const app = compose()
   .use(justOnce('*', input => !input));
 
-console.log(app(true)); // false
-console.log(app(true)); // true
-console.log(app(true)); // true
+console.log(await app(true)); // false
+console.log(await app(true)); // true
+console.log(await app(true)); // true
 ```
 
 ## 😎 Contributing
