@@ -39,8 +39,8 @@ Rippleware no longer relies upon [deasync](https://www.npmjs.com/package/deasync
 ```diff
 import compose from "rippleware";
 
-+ const app = compose({ sync: true }).use("*", () => null);
-- const app = compose().use("*", () => null);
++ const app = compose().use("*", () => null);
+- const app = compose({ sync: true }).use("*", () => null);
 
 + const result = await(app());
 - const result = app();
