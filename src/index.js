@@ -16,12 +16,15 @@ const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 const recurseUse = (e, globalState) => {
   const handlers = [];
   const handle = (...args) => {
-    if (typeCheck("(String, Function)", args) || typeCheck("(Function, Function)", args)) {
+    if (
+      typeCheck("(String, Function)", args) ||
+      typeCheck("(Function, Function)", args)
+    ) {
       const [matches, handler] = args;
       return handlers.push({ matches, handler }) && undefined;
     } else if (typeCheck("(Function)", args)) {
       const [handler] = args;
-      return handlers.push({ matches: '*', handler }) && undefined;
+      return handlers.push({ matches: "*", handler }) && undefined;
     }
     throw new Error(`Invalid call to handle().`);
   };
@@ -289,9 +292,7 @@ export const compose = (...args) => {
 
 export const justOnce = (...args) => burden =>
   burden("*", (input, { useState, useGlobal }) => {
-    const [app] = useState(() =>
-      compose(useGlobal).use(...args)
-    );
+    const [app] = useState(() => compose(useGlobal).use(...args));
     const [once, setOnce] = useState(false);
     if (once === false) {
       setOnce(true);
