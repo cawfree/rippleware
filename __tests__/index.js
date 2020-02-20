@@ -547,3 +547,10 @@ it("should permit noop operations", async () => {
 
   expect(await app(1, 1)).toEqual([2, 1]);
 });
+
+it("should permit shorthand matcher declarations", async () => {
+  const app = compose()
+    .use(h => h(b => !b));
+
+  expect(await app(true)).toEqual(false);
+});

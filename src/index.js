@@ -15,7 +15,17 @@ const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
 const recurseUse = (e, globalState) => {
   const handlers = [];
-  const handle = (matches, handler) => handlers.push({ matches, handler });
+  const handle = (...args) => {
+    if (typeCheck("(String, Function)", args) || typeCheck("(Function, Function)", args)) {
+      const [matches, handler] = args;
+      return handlers.push({ matches, handler }) && undefined;
+    } else if (typeCheck("(Function)", args)) {
+      const [handler] = args;
+      return handlers.push({ matches: '*', handler }) && undefined;
+    }
+    throw new Error(`Invalid call to handle().`);
+  };
+  //const handle = (matches, handler) => handlers.push({ matches, handler });
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f, globalState)], []);
   } else if (typeCheck("Function", e) && typeCheck("Function", e.use)) {
