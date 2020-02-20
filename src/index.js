@@ -290,23 +290,36 @@ export const compose = (...args) => {
   return r;
 };
 
-export const justOnce = (...args) => burden =>
-  burden("*", (input, { useState, useGlobal }) => {
+export const justOnce = (...args) => h =>
+  h((input, { useState, useGlobal, useMeta }) => {
     const [app] = useState(() => compose(useGlobal).use(...args));
     const [once, setOnce] = useState(false);
+    // TODO: We need to come up with a much cleaner architecture
+    //       for nested execution like this.
     if (once === false) {
       setOnce(true);
-      return Promise.resolve(app(input));
+      app.inputMeta = useMeta();
+      return Promise.resolve(app(input)).then(result => {
+        useMeta(app.outputMeta);
+        return result;
+      });
     }
+    useMeta(useMeta());
     return Promise.resolve(input);
   });
 
-export const print = () => burden =>
-  burden("*", (input, { useMeta, useTopology }) => {
-    console.log({ input, meta: useMeta(), topology: useTopology() });
+export const print = () => h =>
+  h((input, { useMeta, useTopology }) => {
+    const meta = useMeta();
+    console.log({ input, meta, topology: useTopology() });
+    useMeta(meta);
     return input;
   });
 
-export const noop = () => burden => burden("*", input => input);
+export const noop = () => h =>
+  h((input, { useMeta }) => {
+    useMeta(useMeta());
+    return input;
+  });
 
 export default compose;

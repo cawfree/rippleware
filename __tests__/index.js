@@ -544,3 +544,18 @@ it("should permit shorthand matcher declarations", async () => {
 
   expect(await app(true)).toEqual(false);
 });
+
+it("should permit the propagation of meta after calls to print() and justOnce()", async () => {
+  const app = compose()
+    .use(h =>
+      h((input, { useMeta }) => {
+        useMeta(input);
+        return null;
+      })
+    )
+    .use(justOnce(print()))
+    .use(print())
+    .use(h => h((input, { useMeta }) => useMeta()));
+
+  expect(await app(3)).toBe(3);
+});
