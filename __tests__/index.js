@@ -553,9 +553,13 @@ it("should permit the propagation of meta after calls to print() and justOnce()"
         return null;
       })
     )
-    .use(justOnce(print()))
+    .use(justOnce(justOnce(justOnce(print()))))
     .use(print())
+    .use(noop())
+    .use(noop())
+    .use(justOnce(justOnce(noop())))
     .use(h => h((input, { useMeta }) => useMeta()));
 
   expect(await app(3)).toBe(3);
+  expect(await app(4)).toBe(4);
 });

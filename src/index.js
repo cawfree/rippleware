@@ -13,6 +13,15 @@ const isArrayOfHandlers = e =>
 // TODO: This is naive.
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
+const executeNested = async (sub, input, { useMeta, useGlobal }) => {
+  sub.globalState =
+        sub.globalState === undefined ? useGlobal() : sub.globalState;
+  sub.inputMeta = useMeta();
+  const result = await sub(input);
+  useMeta(sub.outputMeta);
+  return result;
+};
+
 const recurseUse = (e, globalState) => {
   const handlers = [];
   const handle = (...args) => {
@@ -34,14 +43,7 @@ const recurseUse = (e, globalState) => {
   } else if (typeCheck("Function", e) && typeCheck("Function", e.use)) {
     // TODO: check there is no overlap between copies of meta
     const sub = klona(e);
-    handle("*", async (input, { useMeta, useGlobal }) => {
-      sub.globalState =
-        sub.globalState === undefined ? useGlobal() : sub.globalState;
-      sub.inputMeta = useMeta();
-      const result = await sub(input);
-      useMeta(sub.outputMeta);
-      return result;
-    });
+    handle((input, hooks) => executeNested(sub, input, hooks));
   } else if (typeCheck("Function", e)) {
     e(handle, globalState);
   } else if (typeCheck("RegExp{source:String}", e)) {
@@ -291,18 +293,15 @@ export const compose = (...args) => {
 };
 
 export const justOnce = (...args) => h =>
-  h((input, { useState, useGlobal, useMeta }) => {
+  h((input, hooks) => {
+    const { useState, useGlobal, useMeta } = hooks;
     const [app] = useState(() => compose(useGlobal).use(...args));
-    const [once, setOnce] = useState(false);
+    const [executed, setExecuted] = useState(false);
     // TODO: We need to come up with a much cleaner architecture
     //       for nested execution like this.
-    if (once === false) {
-      setOnce(true);
-      app.inputMeta = useMeta();
-      return Promise.resolve(app(input)).then(result => {
-        useMeta(app.outputMeta);
-        return result;
-      });
+    if (!executed) {
+      setExecuted(true);
+      return executeNested(app, input, hooks);
     }
     useMeta(useMeta());
     return Promise.resolve(input);
