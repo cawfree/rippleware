@@ -33,7 +33,7 @@ const recurseUse = (e, globalState) => {
     }
     throw new Error(`Invalid call to handle().`);
   };
-  if (Array.isArray(e)) {
+  if (typeCheck("Array", e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f, globalState)], []);
   } else if (isRippleware(e)) {
     // TODO: check there is no overlap between copies of meta
@@ -85,11 +85,8 @@ const findHandlerByMatches = (data, [...handlers]) =>
         }
       } else if (typeCheck("Function", current.matches)) {
         const result = current.matches(data);
-        if (result === true || result === false) {
-          if (result) {
-            return current;
-          }
-          return handler;
+        if (typeCheck("Boolean", result)) {
+          return result ? current : handler;
         }
         throw new Error("A matcher function may only return a boolean result.");
       }
