@@ -233,6 +233,8 @@ const createHooks = () => {
   return [hooks, resetHooks];
 };
 
+const scalarOrArray = input => input.length === 0 ? undefined : input.length === 1 ? input[0] : input;
+
 export const compose = (...args) => {
   const mwr = [];
   
@@ -248,22 +250,15 @@ export const compose = (...args) => {
       );
     };
 
-    const wares = mwr.map(e => recurseUse(simplify(e), r.globalState));
-
-    const p = executeMiddleware(
-      wares,
-      {
-        ...hooks,
-        useGlobal: () => r.globalState
-      },
-      input.length === 0 ? undefined : input.length === 1 ? input[0] : input,
+    return executeMiddleware(
+      mwr.map(e => recurseUse(simplify(e), r.globalState)),
+      { ...hooks, useGlobal: () => r.globalState },
+      scalarOrArray(input),
       r.inputMeta
-    );
-    return p.then(([result, outputMeta]) => {
-      r.outputMeta = outputMeta;
-      return result;
-    });
-  }
+    )
+    .then(([result, outputMeta]) => (((r.outputMeta = outputMeta) && undefined) || result));
+  };
+
   r.use = (...args) => {
     if (args.length === 0) {
       throw new Error(
