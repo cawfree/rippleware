@@ -7,12 +7,15 @@ const PATTERN_HANDLER_ARRAY = "[(String|Function,Function)]";
 
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
-const maybeScalar = input => input.length === 0 ? undefined : input.length === 1 ? input[0] : input;
+const maybeScalar = input =>
+  input.length === 0 ? undefined : input.length === 1 ? input[0] : input;
 
-export const isRippleware = fn => typeCheck("Function", fn) && typeCheck("Function", fn.use);
+export const isRippleware = fn =>
+  typeCheck("Function", fn) && typeCheck("Function", fn.use);
 
 const executeNested = async (sub, input, { useMeta, useGlobal }) => {
-  sub.globalState = sub.globalState === undefined ? useGlobal() : sub.globalState;
+  sub.globalState =
+    sub.globalState === undefined ? useGlobal() : sub.globalState;
   sub.inputMeta = useMeta();
   const result = await sub(input);
   useMeta(sub.outputMeta);
@@ -22,12 +25,15 @@ const executeNested = async (sub, input, { useMeta, useGlobal }) => {
 const recurseUse = (e, globalState) => {
   const handlers = [];
   const handle = (...args) => {
-    if (typeCheck("(String, Function)", args) || typeCheck("(Function, Function)", args)) {
+    if (
+      typeCheck("(String, Function)", args) ||
+      typeCheck("(Function, Function)", args)
+    ) {
       const [matches, handler] = args;
       return handlers.push([matches, handler]) && undefined;
     } else if (typeCheck("(Function)", args)) {
       const [handler] = args;
-      return handlers.push([ "*", handler]) && undefined;
+      return handlers.push(["*", handler]) && undefined;
     }
     throw new Error(`Invalid call to handle().`);
   };
@@ -77,7 +83,8 @@ const findHandlerByMatches = (data, [...handlers]) => {
   for (let i = 0; i < handlers.length; i += 1) {
     const current = handlers[i];
     const [matches] = current;
-    const isStringMatch = typeCheck("String", matches) && typeCheck(matches, data);
+    const isStringMatch =
+      typeCheck("String", matches) && typeCheck(matches, data);
     const isFunctionMatch = typeCheck("Function", matches) && matches(data);
     if (isStringMatch || isFunctionMatch) {
       return current;
@@ -100,30 +107,33 @@ const executeHandler = ([matches, handler], data, hooks, metaIn) => {
       "A call to useMeta() must contain only one or zero arguments."
     );
   };
-  return Promise.resolve(handler(data, { ...hooks, useMeta }))
-    .then(result => [result, meta]);
+  return Promise.resolve(handler(data, { ...hooks, useMeta })).then(result => [
+    result,
+    meta
+  ]);
 };
 
 const collectResults = (stage, e) => [
   maybeScalar(e.map(([result]) => result)),
-  maybeScalar(e.map(([_, meta]) => meta)),
+  maybeScalar(e.map(([_, meta]) => meta))
 ];
 
-const executeEvaluated = (stage, data, hooks, meta) =>  Promise.all(
-  stage.map((s, i) => {
-    if (typeCheck(PATTERN_HANDLER_ARRAY, s)) {
-      const datum = data[i];
-      const handler = findHandlerByMatches(datum, s);
-      if (handler) {
-        return executeHandler(handler, datum, hooks, meta);
+const executeEvaluated = (stage, data, hooks, meta) =>
+  Promise.all(
+    stage.map((s, i) => {
+      if (typeCheck(PATTERN_HANDLER_ARRAY, s)) {
+        const datum = data[i];
+        const handler = findHandlerByMatches(datum, s);
+        if (handler) {
+          return executeHandler(handler, datum, hooks, meta);
+        }
+        return Promise.reject(
+          new Error(`Could not find a valid matcher for ${datum}.`)
+        );
       }
-      return Promise.reject(
-        new Error(`Could not find a valid matcher for ${datum}.`)
-      );
-    }
-    return recurseApply(data[i], s, hooks, meta);
-  })
-).then(e => collectResults(stage, e));
+      return recurseApply(data[i], s, hooks, meta);
+    })
+  ).then(e => collectResults(stage, e));
 
 const recurseApply = (data, stage, hooks, meta) => {
   if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
@@ -196,7 +206,7 @@ const createHooks = () => {
 
 export const compose = (...args) => {
   const mwr = [];
-  
+
   const [globalState] = init(...args);
   const [hooks, resetHooks] = createHooks();
 
@@ -214,9 +224,11 @@ export const compose = (...args) => {
       { ...hooks, useGlobal: () => r.globalState },
       maybeScalar(input),
       r.inputMeta
-    )
-    .then(([result, outputMeta]) => (((r.outputMeta = outputMeta) && undefined) || result));
-  };
+    ).then(
+      ([result, outputMeta]) =>
+        ((r.outputMeta = outputMeta) && undefined) || result
+    );
+  }
 
   r.use = (...args) => {
     if (args.length === 0) {
@@ -249,12 +261,14 @@ export const justOnce = (...args) => h =>
     return Promise.resolve(input);
   });
 
-export const print = () => h => h((input, { useMeta, useTopology }) => {
-  const meta = useMeta();
-  console.log({ input, meta, topology: useTopology() });
-  return useMeta(meta) || input;
-});
+export const print = () => h =>
+  h((input, { useMeta, useTopology }) => {
+    const meta = useMeta();
+    console.log({ input, meta, topology: useTopology() });
+    return useMeta(meta) || input;
+  });
 
-export const noop = () => h => h((input, { useMeta }) => (useMeta(useMeta()) || input));
+export const noop = () => h =>
+  h((input, { useMeta }) => useMeta(useMeta()) || input);
 
 export default compose;
