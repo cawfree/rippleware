@@ -3,12 +3,7 @@ import jsonpath from "jsonpath";
 import deepEqual from "deep-equal";
 import klona from "klona";
 
-const isArrayOfHandlers = e =>
-  Array.isArray(e) &&
-  e.reduce(
-    (r, f) => !!r && typeCheck("{matches:String|Function,handler:Function}", f),
-    e.length > 0
-  );
+const PATTERN_HANDLER_ARRAY = "[{matches:String|Function,handler:Function}]";
 
 // TODO: This is naive.
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
@@ -154,7 +149,7 @@ const recurseApply = (data, stage, hooks, meta) =>
       return Promise.reject(
         new Error("A call to use() must define at least a single handler.")
       );
-    } else if (stage.length === 1 && isArrayOfHandlers(stage[0])) {
+    } else if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
       // XXX: Special case: consume the entire argument without destructuring
       //      if we're using a single array handler.
       const [...handlers] = stage[0];
@@ -166,7 +161,7 @@ const recurseApply = (data, stage, hooks, meta) =>
     } else if (data.length >= stage.length) {
       return Promise.all(
         stage.map((s, i) => {
-          if (isArrayOfHandlers(s)) {
+          if (typeCheck(PATTERN_HANDLER_ARRAY, s)) {
             const datum = data[i];
             const handler = findHandlerByMatches(datum, s);
             if (handler) {
