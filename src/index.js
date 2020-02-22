@@ -128,11 +128,11 @@ const executeEvaluated = (stage, data, hooks, meta) =>
           new Error(`Could not find a valid matcher for ${datum}.`)
         );
       }
-      return recurseApply(data[i], s, hooks, meta);
+      return recurseApply(data[i], meta, s, hooks);
     })
   ).then(e => collectResults(stage, e));
 
-const recurseApply = (data, stage, hooks, meta) => {
+const recurseApply = (data, meta, stage, hooks) => {
   if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
     return executeEvaluated([stage[0]], [data], hooks, meta);
   } else if (data.length >= stage.length) {
@@ -146,15 +146,13 @@ const executeMiddleware = (mwr, hooks, input, inputMeta) =>
     (p, stage, i, orig) =>
       p.then(dataFromLastStage => {
         const { length } = orig;
-        const [result, meta] = dataFromLastStage;
         return recurseApply(
-          result,
+          ...dataFromLastStage,
           stage,
           {
             ...hooks,
             useTopology: () => [i, length]
           },
-          meta
         );
       }),
     Promise.resolve([input, inputMeta])
