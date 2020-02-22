@@ -34,7 +34,6 @@ const recurseUse = (e, globalState) => {
   if (typeCheck("Array", e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f, globalState)], []);
   } else if (isRippleware(e)) {
-    // TODO: check there is no overlap between copies of meta
     const sub = klona(e);
     handle((input, hooks) => executeNested(sub, input, hooks));
   } else if (typeCheck("Function", e)) {
@@ -127,12 +126,7 @@ const executeEvaluated = (stage, data, hooks, meta) =>  Promise.all(
 ).then(e => collectResults(stage, e));
 
 const recurseApply = (data, stage, hooks, meta) => {
-  if (typeCheck("Function", stage)) {
-    return Promise.resolve(stage(data))
-      .then(result => [result, undefined]);
-  } else if (!Array.isArray(stage) || stage.length === 0) {
-    return Promise.reject(new Error("A call to use() must define at least a single handler."));
-  } else if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
+  if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
     return executeEvaluated([stage[0]], [data], hooks, meta);
   } else if (data.length >= stage.length) {
     return executeEvaluated(stage, data, hooks, meta);
