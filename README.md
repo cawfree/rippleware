@@ -370,6 +370,18 @@ console.log(await app(true)); // true
 console.log(await app(true)); // true
 ```
 
+### `noop`
+A middleware stage which simply propagates input data, alongside meta, unchanged. Useful for skipping regions of processing for indexed steps of execution.
+
+```javascript
+import compose, { noop } from 'rippleware';
+
+const app = compose()
+  .use(h => h(i => i + 1), noop());
+
+app([0, 0]); // [1, 0]
+```
+
 ## 😎 Contributing
 
 This is an active project, and your contributes are welcome! Before submitting any [Pull Requests](https://github.com/cawfree/rippleware/pulls), please ensure all existing unit tests pass with a call to `yarn jest`.

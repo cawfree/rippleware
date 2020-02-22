@@ -275,6 +275,11 @@ it("should be capable of executing the example code", async () => {
     ["hi", "bye"],
     [0, 1]
   ]);
+
+  const app8 = compose()
+    .use(somethingThatAddsOneToAScalar(), noop());
+  
+  expect(await app8([0, 0])).toEqual([1, 0]);
 });
 
 it("should be possible to execute some middleware only once", async () => {
