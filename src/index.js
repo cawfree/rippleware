@@ -7,6 +7,8 @@ const PATTERN_HANDLER_ARRAY = "[(String|Function,Function)]";
 
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
+const maybeScalar = input => input.length === 0 ? undefined : input.length === 1 ? input[0] : input;
+
 export const isRippleware = fn => typeCheck("Function", fn) && typeCheck("Function", fn.use);
 
 const executeNested = async (sub, input, { useMeta, useGlobal }) => {
@@ -113,24 +115,10 @@ const executeHandler = ([matches, handler], data, hooks, metaIn) => {
     .then(result => [result, meta]);
 };
 
-const collectResults = (stage, e) => {
-  const { results, metas } = e.reduce(
-    (obj, e) => {
-      const [result, meta] = e;
-      obj.results.push(result);
-      obj.metas.push(meta);
-      return obj;
-    },
-    {
-      results: [],
-      metas: []
-    }
-  );
-  if (stage.length > 1 && results.length > 1) {
-    return [results, metas];
-  }
-  return [results[0], metas[0]];
-};
+const collectResults = (stage, e) => [
+  maybeScalar(e.map(([result]) => result)),
+  maybeScalar(e.map(([_, meta]) => meta)),
+];
 
 const recurseApply = (data, stage, hooks, meta) =>
   Promise.resolve().then(() => {
@@ -233,8 +221,6 @@ const createHooks = () => {
   return [hooks, resetHooks];
 };
 
-const scalarOrArray = input => input.length === 0 ? undefined : input.length === 1 ? input[0] : input;
-
 export const compose = (...args) => {
   const mwr = [];
   
@@ -253,7 +239,7 @@ export const compose = (...args) => {
     return executeMiddleware(
       mwr.map(e => recurseUse(simplify(e), r.globalState)),
       { ...hooks, useGlobal: () => r.globalState },
-      scalarOrArray(input),
+      maybeScalar(input),
       r.inputMeta
     )
     .then(([result, outputMeta]) => (((r.outputMeta = outputMeta) && undefined) || result));
