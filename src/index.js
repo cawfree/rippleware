@@ -202,10 +202,8 @@ const init = (...args) => {
   throw new Error("Invalid options.");
 };
 
-export const compose = (...args) => {
-  const mwr = [];
+const createHooks = () => {
   let currentHook = 0;
-
   // https://www.netlify.com/blog/2019/03/11/deep-dive-how-do-react-hooks-really-work/
   const { ...hooks } = (function() {
     const hooks = [];
@@ -231,11 +229,18 @@ export const compose = (...args) => {
       }
     };
   })();
+  const resetHooks = () => (currentHook = 0) && undefined;
+  return [hooks, resetHooks];
+};
 
+export const compose = (...args) => {
+  const mwr = [];
+  
   const [globalState] = init(...args);
+  const [hooks, resetHooks] = createHooks();
 
   function r(...input) {
-    currentHook = 0;
+    resetHooks();
 
     r.use = () => {
       throw new Error(
