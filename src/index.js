@@ -93,16 +93,12 @@ const findHandlerByMatches = (data, [...handlers]) => {
 const executeHandler = ([matches, handler], data, hooks, metaIn) => {
   let meta = undefined;
   const useMeta = (...args) => {
-    if (args.length === 1) {
-      const [arg] = args;
-      meta = !!arg && typeof arg == "object" ? Object.freeze(arg) : arg;
-      return undefined;
-    } else if (args.length === 0) {
+    if (args.length === 0) {
       return metaIn;
     }
-    throw new Error(
-      "A call to useMeta() must contain only one or zero arguments."
-    );
+    const [arg] = args;
+    meta = !!arg && typeof arg == "object" ? Object.freeze(arg) : arg;
+    return undefined;
   };
   return Promise.resolve(handler(data, { ...hooks, useMeta })).then(result => [
     result,
