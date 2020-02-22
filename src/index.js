@@ -142,14 +142,10 @@ const executeMiddleware = (mwr, hooks, input, inputMeta) =>
     (p, stage, i, orig) =>
       p.then(dataFromLastStage => {
         const { length } = orig;
-        return recurseApply(
-          ...dataFromLastStage,
-          stage,
-          {
-            ...hooks,
-            useTopology: () => [i, length]
-          },
-        );
+        return recurseApply(...dataFromLastStage, stage, {
+          ...hooks,
+          useTopology: () => [i, length]
+        });
       }),
     Promise.resolve([input, inputMeta])
   );
