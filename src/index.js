@@ -7,6 +7,8 @@ const PATTERN_HANDLER_ARRAY = "[{matches:String|Function,handler:Function}]";
 
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
+export const isRippleware = fn => typeCheck("Function", fn) && typeCheck("Function", fn.use);
+
 const executeNested = async (sub, input, { useMeta, useGlobal }) => {
   sub.globalState =
         sub.globalState === undefined ? useGlobal() : sub.globalState;
@@ -31,10 +33,9 @@ const recurseUse = (e, globalState) => {
     }
     throw new Error(`Invalid call to handle().`);
   };
-  //const handle = (matches, handler) => handlers.push({ matches, handler });
   if (Array.isArray(e)) {
     return e.reduce((arr, f) => [...arr, recurseUse(f, globalState)], []);
-  } else if (typeCheck("Function", e) && typeCheck("Function", e.use)) {
+  } else if (isRippleware(e)) {
     // TODO: check there is no overlap between copies of meta
     const sub = klona(e);
     handle((input, hooks) => executeNested(sub, input, hooks));
@@ -289,8 +290,6 @@ export const justOnce = (...args) => h =>
     const { useState, useGlobal, useMeta } = hooks;
     const [app] = useState(() => compose(useGlobal).use(...args));
     const [executed, setExecuted] = useState(false);
-    // TODO: We need to come up with a much cleaner architecture
-    //       for nested execution like this.
     if (!executed) {
       setExecuted(true);
       return executeNested(app, input, hooks);
