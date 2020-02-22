@@ -79,14 +79,10 @@ const findHandlerByMatches = (data, [...handlers]) => {
   for (let i = 0; i < handlers.length; i += 1) {
     const current = handlers[i];
     const [matches] = current;
-    if (typeCheck("String", matches) && typeCheck(matches, data)) {
+    const isStringMatch = typeCheck("String", matches) && typeCheck(matches, data);
+    const isFunctionMatch = typeCheck("Function", matches) && matches(data);
+    if (isStringMatch || isFunctionMatch) {
       return current;
-    } else if (typeCheck("Function", matches)) {
-      const result = matches(data);
-      if (typeCheck("Boolean", result)) {
-        return current;
-      }
-      throw new Error("A matcher function may only return a boolean result.");
     }
   }
   return null;
