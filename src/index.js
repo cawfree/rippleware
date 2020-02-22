@@ -21,10 +21,7 @@ const executeNested = async (sub, input, { useMeta, useGlobal }) => {
 const recurseUse = (e, globalState) => {
   const handlers = [];
   const handle = (...args) => {
-    if (
-      typeCheck("(String, Function)", args) ||
-      typeCheck("(Function, Function)", args)
-    ) {
+    if (typeCheck("(String, Function)", args) || typeCheck("(Function, Function)", args)) {
       const [matches, handler] = args;
       return handlers.push([matches, handler]) && undefined;
     } else if (typeCheck("(Function)", args)) {
@@ -293,18 +290,12 @@ export const justOnce = (...args) => h =>
     return Promise.resolve(input);
   });
 
-export const print = () => h =>
-  h((input, { useMeta, useTopology }) => {
-    const meta = useMeta();
-    console.log({ input, meta, topology: useTopology() });
-    useMeta(meta);
-    return input;
-  });
+export const print = () => h => h((input, { useMeta, useTopology }) => {
+  const meta = useMeta();
+  console.log({ input, meta, topology: useTopology() });
+  return useMeta(meta) || input;
+});
 
-export const noop = () => h =>
-  h((input, { useMeta }) => {
-    useMeta(useMeta());
-    return input;
-  });
+export const noop = () => h => h((input, { useMeta }) => (useMeta(useMeta()) || input));
 
 export default compose;
