@@ -76,23 +76,21 @@ const simplify = args => {
   });
 };
 
-const findHandlerByMatches = (data, [...handlers]) =>
-  handlers.reduce((handler, current) => {
-    if (!handler) {
-      if (typeCheck("String", current.matches)) {
-        if (typeCheck(current.matches, data)) {
-          return current;
-        }
-      } else if (typeCheck("Function", current.matches)) {
-        const result = current.matches(data);
-        if (typeCheck("Boolean", result)) {
-          return result ? current : handler;
-        }
-        throw new Error("A matcher function may only return a boolean result.");
+const findHandlerByMatches = (data, [...handlers]) => {
+  for (let i = 0; i < handlers.length; i += 1) {
+    const current = handlers[i];
+    if (typeCheck("String", current.matches) && typeCheck(current.matches, data)) {
+      return current;
+    } else if (typeCheck("Function", current.matches)) {
+      const result = current.matches(data);
+      if (typeCheck("Boolean", result)) {
+        return current;
       }
+      throw new Error("A matcher function may only return a boolean result.");
     }
-    return handler;
-  }, null);
+  }
+  return null;
+};
 
 const executeHandler = ({ handler }, data, hooks, metaIn) => {
   let meta = undefined;
