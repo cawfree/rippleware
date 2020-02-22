@@ -1,7 +1,7 @@
-import { typeCheck } from "type-check";
 import jsonpath from "jsonpath";
 import deepEqual from "deep-equal";
 import klona from "klona";
+import { typeCheck } from "type-check";
 
 const PATTERN_HANDLER_ARRAY = "[(String|Function,Function)]";
 
@@ -9,9 +9,6 @@ const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
 const maybeScalar = input =>
   input.length === 0 ? undefined : input.length === 1 ? input[0] : input;
-
-export const isRippleware = fn =>
-  typeCheck("Function", fn) && typeCheck("Function", fn.use);
 
 const executeNested = async (sub, input, { useMeta, useGlobal }) => {
   sub.globalState =
@@ -247,6 +244,13 @@ export const compose = (...args) => {
 
   return r;
 };
+
+export const isRippleware = fn =>
+  typeCheck("Function", fn) &&
+  typeCheck("Function", fn.use) &&
+  fn.hasOwnProperty("globalState") &&
+  fn.hasOwnProperty("inputMeta") &&
+  fn.hasOwnProperty("outputMeta");
 
 export const justOnce = (...args) => h =>
   h((input, hooks) => {
