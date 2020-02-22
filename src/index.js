@@ -5,7 +5,6 @@ import klona from "klona";
 
 const PATTERN_HANDLER_ARRAY = "[{matches:String|Function,handler:Function}]";
 
-// TODO: This is naive.
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
 const executeNested = async (sub, input, { useMeta, useGlobal }) => {
@@ -199,8 +198,6 @@ const executeMiddleware = (mwr, hooks, input, inputMeta) =>
       }),
     Promise.resolve([input, inputMeta])
   );
-
-const defaultOptions = Object.freeze({ sync: true });
 
 const init = (...args) => {
   if (args.length === 0) {
