@@ -3,7 +3,7 @@ import jsonpath from "jsonpath";
 import deepEqual from "deep-equal";
 import klona from "klona";
 
-const PATTERN_HANDLER_ARRAY = "[{matches:String|Function,handler:Function}]";
+const PATTERN_HANDLER_ARRAY = "[(String|Function,Function)]";
 
 const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
 
@@ -26,10 +26,10 @@ const recurseUse = (e, globalState) => {
       typeCheck("(Function, Function)", args)
     ) {
       const [matches, handler] = args;
-      return handlers.push({ matches, handler }) && undefined;
+      return handlers.push([matches, handler]) && undefined;
     } else if (typeCheck("(Function)", args)) {
       const [handler] = args;
-      return handlers.push({ matches: "*", handler }) && undefined;
+      return handlers.push([ "*", handler]) && undefined;
     }
     throw new Error(`Invalid call to handle().`);
   };
@@ -79,10 +79,11 @@ const simplify = args => {
 const findHandlerByMatches = (data, [...handlers]) => {
   for (let i = 0; i < handlers.length; i += 1) {
     const current = handlers[i];
-    if (typeCheck("String", current.matches) && typeCheck(current.matches, data)) {
+    const [matches] = current;
+    if (typeCheck("String", matches) && typeCheck(matches, data)) {
       return current;
-    } else if (typeCheck("Function", current.matches)) {
-      const result = current.matches(data);
+    } else if (typeCheck("Function", matches)) {
+      const result = matches(data);
       if (typeCheck("Boolean", result)) {
         return current;
       }
@@ -92,7 +93,7 @@ const findHandlerByMatches = (data, [...handlers]) => {
   return null;
 };
 
-const executeHandler = ({ handler }, data, hooks, metaIn) => {
+const executeHandler = ([matches, handler], data, hooks, metaIn) => {
   let meta = undefined;
   return Promise.resolve()
     .then(() =>
@@ -166,7 +167,6 @@ const recurseApply = (data, stage, hooks, meta) =>
               new Error(`Could not find a valid matcher for ${datum}.`)
             );
           }
-          // TODO: how to delegate meta?
           return recurseApply(data[i], s, hooks, meta);
         })
       ).then(e => collectResults(stage, e));
