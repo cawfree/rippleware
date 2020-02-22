@@ -110,46 +110,35 @@ const collectResults = (stage, e) => [
   maybeScalar(e.map(([_, meta]) => meta)),
 ];
 
-const recurseApply = (data, stage, hooks, meta) =>
-  Promise.resolve().then(() => {
-    if (typeCheck("Function", stage)) {
-      return Promise.resolve()
-        .then(() => stage(data))
-        .then(result => [result, undefined]);
-    } else if (!Array.isArray(stage) || stage.length === 0) {
-      return Promise.reject(
-        new Error("A call to use() must define at least a single handler.")
-      );
-    } else if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
-      // XXX: Special case: consume the entire argument without destructuring
-      //      if we're using a single array handler.
-      const [...handlers] = stage[0];
-      const handler = findHandlerByMatches(data, handlers);
+const executeEvaluated = (stage, data, hooks, meta) =>  Promise.all(
+  stage.map((s, i) => {
+    if (typeCheck(PATTERN_HANDLER_ARRAY, s)) {
+      const datum = data[i];
+      const handler = findHandlerByMatches(datum, s);
       if (handler) {
-        return executeHandler(handler, data, hooks, meta);
+        return executeHandler(handler, datum, hooks, meta);
       }
-      return Promise.reject(`Could not find a valid matcher for ${data}.`);
-    } else if (data.length >= stage.length) {
-      return Promise.all(
-        stage.map((s, i) => {
-          if (typeCheck(PATTERN_HANDLER_ARRAY, s)) {
-            const datum = data[i];
-            const handler = findHandlerByMatches(datum, s);
-            if (handler) {
-              return executeHandler(handler, datum, hooks, meta);
-            }
-            return Promise.reject(
-              new Error(`Could not find a valid matcher for ${datum}.`)
-            );
-          }
-          return recurseApply(data[i], s, hooks, meta);
-        })
-      ).then(e => collectResults(stage, e));
+      return Promise.reject(
+        new Error(`Could not find a valid matcher for ${datum}.`)
+      );
     }
-    return Promise.reject(
-      new Error(`A handler for ${data} could not be found.`)
-    );
-  });
+    return recurseApply(data[i], s, hooks, meta);
+  })
+).then(e => collectResults(stage, e));
+
+const recurseApply = (data, stage, hooks, meta) => {
+  if (typeCheck("Function", stage)) {
+    return Promise.resolve(stage(data))
+      .then(result => [result, undefined]);
+  } else if (!Array.isArray(stage) || stage.length === 0) {
+    return Promise.reject(new Error("A call to use() must define at least a single handler."));
+  } else if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
+    return executeEvaluated([stage[0]], [data], hooks, meta);
+  } else if (data.length >= stage.length) {
+    return executeEvaluated(stage, data, hooks, meta);
+  }
+  return Promise.reject(new Error(`A handler for ${data} could not be found.`));
+};
 
 const executeMiddleware = (mwr, hooks, input, inputMeta) =>
   mwr.reduce(
