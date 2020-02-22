@@ -12,8 +12,7 @@ const maybeScalar = input => input.length === 0 ? undefined : input.length === 1
 export const isRippleware = fn => typeCheck("Function", fn) && typeCheck("Function", fn.use);
 
 const executeNested = async (sub, input, { useMeta, useGlobal }) => {
-  sub.globalState =
-        sub.globalState === undefined ? useGlobal() : sub.globalState;
+  sub.globalState = sub.globalState === undefined ? useGlobal() : sub.globalState;
   sub.inputMeta = useMeta();
   const result = await sub(input);
   useMeta(sub.outputMeta);
@@ -90,24 +89,19 @@ const findHandlerByMatches = (data, [...handlers]) => {
 
 const executeHandler = ([matches, handler], data, hooks, metaIn) => {
   let meta = undefined;
-  return Promise.resolve()
-    .then(() =>
-      handler(data, {
-        ...hooks,
-        useMeta: (...args) => {
-          if (args.length === 1) {
-            const [arg] = args;
-            meta = !!arg && typeof arg == "object" ? Object.freeze(arg) : arg;
-            return undefined;
-          } else if (args.length === 0) {
-            return metaIn;
-          }
-          throw new Error(
-            "A call to useMeta() must contain only one or zero arguments."
-          );
-        }
-      })
-    )
+  const useMeta = (...args) => {
+    if (args.length === 1) {
+      const [arg] = args;
+      meta = !!arg && typeof arg == "object" ? Object.freeze(arg) : arg;
+      return undefined;
+    } else if (args.length === 0) {
+      return metaIn;
+    }
+    throw new Error(
+      "A call to useMeta() must contain only one or zero arguments."
+    );
+  };
+  return Promise.resolve(handler(data, { ...hooks, useMeta }))
     .then(result => [result, meta]);
 };
 
