@@ -101,6 +101,7 @@ it("should permit middleware to retain state between executions", async () => {
   const app3 = compose().use([retainState()]);
 
   const result3 = await app3([500]);
+
   const otherResult3 = await app3([206]);
 
   expect(result3).toEqual(500);
@@ -556,6 +557,7 @@ it("should permit extended parameter declarations", async () => {
   expect(await app([1, 2])).toEqual([[1, 2], undefined]);
 });
 
+
 it("should reconcile difficult configurations like this", async () => {
   const app = compose()
     .use(
@@ -564,10 +566,16 @@ it("should reconcile difficult configurations like this", async () => {
       noop(),
     );
 
-  const x = await app([1, 0], 1);
-
   expect(await app(0,0,0)).toEqual([0,0,0]);
   expect(await app([0],[0],[0])).toEqual([[0],[0],[0]]);
   expect(await app([0, 0],0,[0])).toEqual([[0, 0],0,[0]]);
   expect(await app([1, 0], 1)).toEqual([ [ 1, 0 ], 1, undefined ]);
+
+  const app2 = compose()
+    .use(
+      compose()
+        .use(noop(), noop(), noop()),
+    );
+
+  expect(await app2(1,2,3)).toEqual([1,2,3]);
 });

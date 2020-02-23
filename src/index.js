@@ -14,7 +14,9 @@ const executeNested = async (sub, input, { useMeta, useGlobal }) => {
   sub.globalState =
     sub.globalState === undefined ? useGlobal() : sub.globalState;
   sub.inputMeta = useMeta();
-  const result = await sub(input);
+  const result = await sub(...(
+    Array.isArray(input) ? input : [input]
+  ));
   useMeta(sub.outputMeta);
   return result;
 };
@@ -194,20 +196,16 @@ const createHooks = () => {
 };
 
 const extend = (toNextLayer, input) => {
-  if (!typeCheck('(Undefined)', input) && input.length < toNextLayer.length) {
+  const s = maybeScalar(input);
+  if (!typeCheck('(Undefined)', input) && Array.isArray(s) && s.length <= toNextLayer.length) {
     return [
       ...input,
       ...(
         [...Array(toNextLayer.length  - input.length)]
       ),
     ];
-    //const s = maybeScalar(input);
-    //return [
-    //  ...(Array.isArray(s) && (maybeScalar(s) === s) ? s : [s]),
-    //  ...[...Array(toNextLayer.length - input.length)],
-    //];
   }
-  return maybeScalar(input);
+  return s;
 };
 
 export const compose = (...args) => {
@@ -271,7 +269,7 @@ export const justOnce = (...args) => h =>
     const [executed, setExecuted] = useState(false);
     if (!executed) {
       setExecuted(true);
-      return executeNested(app, input, hooks);
+      return executeNested(app, input, hooks); 
     }
     useMeta(useMeta());
     return Promise.resolve(input);
