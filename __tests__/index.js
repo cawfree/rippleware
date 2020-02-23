@@ -53,26 +53,6 @@ it("should be capable of exporting a hooks interface", async () => {
   expect(result6).toEqual(false);
 });
 
-// it("should parse single arguments in a consistent manner between sync/async execution", async () => {
-//   const app = compose({ sync: false }).use(handle =>
-//     handle("*", input => input)
-//   );
-//
-//   const app2 = compose().use(handle => handle("*", input => input));
-//
-//   const result1 = await app("hi");
-//   const result2 = await app2("hi");
-//
-//   expect(result1).toEqual(result2);
-//   expect(result1).toEqual("hi");
-//
-//   const result3 = await app("hi", "bye");
-//   const result4 = await app2("hi", "bye");
-//
-//   expect(result3).toEqual(result4);
-//   expect(result3).toEqual(["hi", "bye"]);
-// });
-
 it("should define a composable structure", async () => {
   const app = compose().use(returnAConstant());
   const res = await app();
@@ -146,9 +126,8 @@ it("should allow you to define custom matcher functions", async () => {
   const customMatcher = input => input === "secret";
   const app = compose().use(handle => handle(customMatcher, () => true));
 
+  expect(await app("secret")).toEqual(true);
   expect(app("hello")).rejects.toBeTruthy();
-
-  expect(app("secret")).resolves.toBeTruthy();
 });
 
 it("should propagate scalar values in a common-sense way", async () => {
@@ -403,9 +382,6 @@ it("should be possible to declare and consume meta to permit the propagation of 
   expect(await app3(3, true)).toEqual(["numeric", "boolean"]);
 
   const app4 = compose().use("*", (_, { useMeta }) => useMeta(1, 1));
-
-  expect(app4()).rejects.toBeTruthy();
-  //expect(() => app4()).toThrow();
 
   const app5 = compose().use("*", (_, { useMeta }) => useMeta());
 
