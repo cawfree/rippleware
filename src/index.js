@@ -196,9 +196,16 @@ const createHooks = () => {
 const extend = (toNextLayer, input) => {
   if (!typeCheck('(Undefined)', input) && input.length < toNextLayer.length) {
     return [
-      maybeScalar(input),
-      ...[...Array(toNextLayer.length - input.length)],
+      ...input,
+      ...(
+        [...Array(toNextLayer.length  - input.length)]
+      ),
     ];
+    //const s = maybeScalar(input);
+    //return [
+    //  ...(Array.isArray(s) && (maybeScalar(s) === s) ? s : [s]),
+    //  ...[...Array(toNextLayer.length - input.length)],
+    //];
   }
   return maybeScalar(input);
 };
