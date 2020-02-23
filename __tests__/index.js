@@ -556,17 +556,18 @@ it("should permit extended parameter declarations", async () => {
   expect(await app([1, 2])).toEqual([[1, 2], undefined]);
 });
 
-it("should not permit bad configurations like this", async () => {
-  const app10 = compose()
+it("should reconcile difficult configurations like this", async () => {
+  const app = compose()
     .use(
       noop(),
       noop(),
       noop(),
     );
 
-  const x = await app10([1, 0], 1);
-  expect(await app10(0,0,0)).toEqual([0,0,0]);
-  expect(await app10([0],[0],[0])).toEqual([[0],[0],[0]]);
-  expect(await app10([0, 0],0,[0])).toEqual([[0, 0],0,[0]]);
-  expect(await app10([1, 0], 1)).toEqual([ [ 1, 0 ], 1, undefined ]);
+  const x = await app([1, 0], 1);
+
+  expect(await app(0,0,0)).toEqual([0,0,0]);
+  expect(await app([0],[0],[0])).toEqual([[0],[0],[0]]);
+  expect(await app([0, 0],0,[0])).toEqual([[0, 0],0,[0]]);
+  expect(await app([1, 0], 1)).toEqual([ [ 1, 0 ], 1, undefined ]);
 });
