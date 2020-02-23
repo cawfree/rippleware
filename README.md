@@ -33,6 +33,19 @@ yarn add rippleware
 
 ### Breaking Changes
 
+#### 0.1.0-alpha.8
+It is no longer possible to use parameter declarations which are too long for the receiving middleware.
+
+```diff
+import compose, { noop } from "rippleware";
+
+const app = compose()
+  .use(noop(), noop());
+
++ await app(1, 2); // will not throw
+- await app(1, 2, 3); // throws
+```
+
 #### 0.1.0-alpha.0
 Rippleware no longer relies upon [deasync](https://www.npmjs.com/package/deasync) to force sequential execution. Now by default, all invocations are asynchronous, and no instanation options are permitted to be specified:
 

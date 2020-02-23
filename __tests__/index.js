@@ -117,7 +117,7 @@ it("should permit middleware to retain state between executions", async () => {
 
   const app5 = compose().use([retainState()]);
 
-  const result5 = await app5(500, 100);
+  const result5 = await app5([500]);
 
   expect(result5).toEqual(500);
 });
@@ -542,4 +542,11 @@ it("should permit the propagation of meta after calls to print() and justOnce()"
 
   expect(await app(3)).toBe(3);
   expect(await app(4)).toBe(4);
+});
+
+it("should permit extended parameter declarations", async () => {
+  const app = compose()
+    .use(noop(), noop());
+
+  expect(app(1, 1, 1)).rejects.toBeTruthy();
 });

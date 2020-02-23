@@ -131,10 +131,10 @@ const executeEvaluated = (stage, data, hooks, meta) =>
 const recurseApply = (data, meta, stage, hooks) => {
   if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
     return executeEvaluated([stage[0]], [data], hooks, meta);
-  } else if (data.length >= stage.length) {
+  } else if (data.length <= stage.length) {
     return executeEvaluated(stage, data, hooks, meta);
   }
-  return Promise.reject(new Error(`A handler for ${data} could not be found.`));
+  return Promise.reject(new Error('The provided data is too long for the receiving middleware.'));
 };
 
 const executeMiddleware = (mwr, hooks, input, inputMeta) =>
