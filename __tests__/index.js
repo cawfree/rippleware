@@ -548,5 +548,6 @@ it("should permit extended parameter declarations", async () => {
   const app = compose()
     .use(noop(), noop());
 
-  expect(app(1, 1, 1)).rejects.toBeTruthy();
+  expect(await app([1, 2])).toEqual([[1, 2], undefined]);
+
 });

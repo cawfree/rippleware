@@ -191,6 +191,16 @@ const createHooks = () => {
   return [hooks, resetHooks];
 };
 
+const extend = (toNextLayer, input) => {
+  if (input.length < toNextLayer.length) {
+    return [
+      maybeScalar(input),
+      ...[...Array(toNextLayer.length - input.length)],
+    ];
+  }
+  return maybeScalar(input);
+};
+
 export const compose = (...args) => {
   const mwr = [];
 
@@ -206,10 +216,13 @@ export const compose = (...args) => {
       );
     };
 
+    const wares = mwr.map(e => recurseUse(simplify(e), r.globalState));
+    const [first] = wares;
+
     return executeMiddleware(
-      mwr.map(e => recurseUse(simplify(e), r.globalState)),
+      wares,
       { ...hooks, useGlobal: () => r.globalState },
-      maybeScalar(input),
+      extend(first, input),
       r.inputMeta
     ).then(
       ([result, outputMeta]) =>
