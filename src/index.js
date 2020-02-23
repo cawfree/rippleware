@@ -133,6 +133,8 @@ const recurseApply = (data, meta, stage, hooks) => {
     return executeEvaluated([stage[0]], [data], hooks, meta);
   } else if (data.length <= stage.length) {
     return executeEvaluated(stage, data, hooks, meta);
+  } else if (Array.isArray(data) && (maybeScalar(data) === data)) {
+    return executeEvaluated(stage, [data], hooks, meta);
   }
   return Promise.reject(new Error('The provided data is too long for the receiving middleware.'));
 };
@@ -192,7 +194,7 @@ const createHooks = () => {
 };
 
 const extend = (toNextLayer, input) => {
-  if (input.length < toNextLayer.length) {
+  if (!typeCheck('(Undefined)', input) && input.length < toNextLayer.length) {
     return [
       maybeScalar(input),
       ...[...Array(toNextLayer.length - input.length)],
