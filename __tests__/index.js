@@ -263,6 +263,17 @@ it("should be capable of executing the example code", async () => {
     .use([somethingThatAddsOneToAScalar(), noop()]);
 
   expect(await app9([0, 1])).toEqual([1, 1]);
+
+  const app10 = compose()
+    .use(
+      noop(),
+      noop(),
+      noop(),
+    );
+
+  expect(await app10(0,0,0)).toEqual([0,0,0]);
+  expect(await app10([0],[0],[0])).toEqual([[0],[0],[0]]);
+  expect(await app10([0, 0],0,[0])).toEqual([[0, 0],0,[0]]);
 });
 
 it("should be possible to execute some middleware only once", async () => {
