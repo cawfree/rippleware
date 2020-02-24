@@ -108,4 +108,19 @@ it("should be possible to use custom middleware", async () => {
     );
 
   expect(await app3(1, 2)).toEqual([4, 5]);
+
+  const addOneIfEven = () => () => [
+    i => (i % 2) === 0,
+    i => i + 1,
+  ];
+
+  const app4 = compose()
+    .use(addOneIfEven(), addOneIfEven());
+
+  expect(await app4(2, 4)).toEqual([3, 5]);
+
+  expect(app4(3, 5))
+    .rejects
+    .toBeTruthy();
+
 });
