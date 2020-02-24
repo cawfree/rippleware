@@ -30,6 +30,7 @@ it("should provide an indexing interface", async () => {
     .use(/$/);
   const app3 = compose()
     .use([[[/$/]]]);
+
   const r1 = await app1([[1, 2, 3, 4]]);
   const r2 = await app2([1, 2, 3, 4]);
   const r3 = await app3([[[[1, 2, 3, 4]]]]);
@@ -82,4 +83,29 @@ it("should be possible to execute nested rippleware", async () => {
     .use(/$/, /$/);
 
   expect(await app1([1], [2])).toEqual(await app3([1], [2]));
+});
+
+it("should be possible to use custom middleware", async () => {
+  const addOne = () => () => ['Number', i => i + 1];
+  const app1 = compose()
+    .use(addOne());
+
+  expect(await app1(0)).toEqual([1]);
+
+  const app2 = compose()
+    .use(addOne(), addOne());
+
+  expect(await app2(0, 1)).toEqual([1, 2]);
+
+  const app3 = compose()
+    .use(addOne(), addOne())
+    .use(
+      compose()
+        .use(addOne(), addOne()),
+    )
+    .use(
+      addOne(), addOne(),
+    );
+
+  expect(await app3(1, 2)).toEqual([4, 5]);
 });

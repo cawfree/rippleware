@@ -25,6 +25,39 @@ const executeArray = ([...exec], input) => [].concat(
   ),
 );
 
+const executeDefs = (defs, input) => {
+  for (let i = 0; i < defs.length; i += 1) {
+    const def = defs[i];
+    if (typeCheck('(String, Function)', def)) {
+      const [match, fire] = def;
+      if (typeCheck(match, input)) {
+        return fire(input);
+      }
+    } else if (typeCheck('(Function, Function)', def)) {
+      const [match, fire] = def;
+      if (match(input)) {
+        return fire(input);
+      }
+    }
+  }
+  throw new Error(`Encountered unexpected execution definition, ${defs}.`);
+};
+
+const executeFunction = (exec, input) => {
+  // TODO: Need to provide globalState.
+  const result = exec();
+  if (typeCheck('Function', result)) {
+    return result(input);
+  } else if (typeCheck('(String, Function)', result)) {
+    return executeDefs([result], input);
+  } else if (typeCheck('(Function, Function)', result)) {
+    return executeDefs([result], input);
+  } else if (Array.isArray(result)) {
+    return executeDefs(result, input);
+  }
+  throw new Error(`Encountered unexpected function definition ${result}.`);
+};
+
 const executeArgument = (exec, input) => {
   if (Array.isArray(exec)) {
     return executeArray(exec, input);
@@ -33,6 +66,8 @@ const executeArgument = (exec, input) => {
   } else if (isRippleware(exec)) {
     return exec([input])
       .then(([[data]]) => data);
+  } else if (typeCheck('Function', exec)) {
+    return executeFunction(exec, input);
   }
   throw new Error(`Unknown argument structure, ${exec}.`);
 };
