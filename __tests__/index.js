@@ -70,4 +70,16 @@ it("should be possible to execute nested rippleware", async () => {
     .use(/$/, /$/);
 
   expect(await app1([1], [2])).toEqual(await app2([1], [2]));
+
+  const app3 = compose()
+    .use(/$/, /$/)
+    .use(
+      compose()
+        .use(/$/),
+      compose()
+        .use(/$/),
+    )
+    .use(/$/, /$/);
+
+  expect(await app1([1], [2])).toEqual(await app3([1], [2]));
 });

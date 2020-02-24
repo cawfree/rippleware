@@ -30,13 +30,19 @@ const executeArgument = (exec, input) => {
     return executeArray(exec, input);
   } else if (typeCheck("RegExp{source:String}", exec)) {
     return jsonpath.query(input, exec.toString().replace(/^\/|\/$/g, ""));
+  } else if (isRippleware(exec)) {
+    return exec([input])
+      .then(([[data]]) => data);
   }
   throw new Error(`Unknown argument structure, ${exec}.`);
 };
 
 const channelFromInvocation = (channelId, [...args], [...input]) => {
   const [...inputWithPadding] = [...input, ...[...Array(input.length - args.length)]];
-  return args.map((exec, i) => executeArgument(exec, input[i]));
+  return Promise
+    .all(
+      args.map((exec, i) => executeArgument(exec, input[i])),
+    );
 };
 
 const channelFromChannel = (channelId, [...args], [...input]) => channelFromInvocation(
