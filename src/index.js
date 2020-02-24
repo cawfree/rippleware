@@ -4,6 +4,8 @@ import klona from "klona";
 import nanoid from "nanoid";
 import { typeCheck } from "type-check";
 
+export const isRippleware = e => typeCheck('Function', e) && typeCheck('Function', e.use);
+
 const parseConstructor = (...args) => {
   if (typeCheck('(Function)', args)) {
     const [createState] = args;
@@ -14,16 +16,18 @@ const parseConstructor = (...args) => {
   throw new Error(`Expected empty constructor, or state initialization function. Encountered: ${args}.`);
 };
 
+const executeArray = ([...exec], input) => [].concat(
+  ...exec.map(
+    (subExec, i) => executeArgument(
+      subExec,
+      input[i],
+    ),
+  ),
+);
+
 const executeArgument = (exec, input) => {
   if (Array.isArray(exec)) {
-    return [].concat(
-      ...exec.map(
-        (subExec, i) => executeArgument(
-          subExec,
-          input[i],
-        ),
-      ),
-    );
+    return executeArray(exec, input);
   } else if (typeCheck("RegExp{source:String}", exec)) {
     return jsonpath.query(input, exec.toString().replace(/^\/|\/$/g, ""));
   }
@@ -31,17 +35,31 @@ const executeArgument = (exec, input) => {
 };
 
 const channelFromInvocation = (channelId, [...args], [...input]) => {
-  if (input.length > args.length) {
-    throw new Error('Encountered too many arguments.');
-  }
   const [...inputWithPadding] = [...input, ...[...Array(input.length - args.length)]];
   return args.map((exec, i) => executeArgument(exec, input[i]));
+};
+
+const channelFromChannel = (channelId, [...args], [...input]) => channelFromInvocation(
+  channelId,
+  [...args],
+  [].concat(...input),
+);
+
+const isSingularRippleware = ([...args]) => {
+  const { length } = args;
+  const [first] = args;
+  return (length === 1) && isRippleware(first);
 };
 
 const channel = (id, [...params], [...input]) => params
   .reduce(
     (p, [channelId, args], i) => p.then(
       (dataFromLastStage) => {
+        if (isSingularRippleware(args)) {
+          const [sub] = args;
+          return sub(...dataFromLastStage)
+            .then(data => [].concat(...data));
+        }
         const executeChannel = (i === 0) ? channelFromInvocation : channelFromChannel;
         return executeChannel(
           channelId,
