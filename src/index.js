@@ -14,15 +14,31 @@ const transforms = Object.freeze({
   sep: () => ([...e]) => [].concat(...e),
 });
 
-const throwOnNestedArrays = e => e.map(f => {
-  if (Array.isArray(f)) {
-    throw new Error("Arrays of middleware must only be of a single-dimension.");
-  }
-});
+const isNestedArray = e => e.reduce(
+  (r, e) => r || Array.isArray(e),
+  false,
+);
+
+const isMatcherDeclaration = e => typeCheck(
+  '[(Function|String,Function)]',
+  e,
+);
+
+const match = (param, arg) => [
+  (e) => {
+    console.log('would match here');
+  },
+  arg,
+];
 
 const shouldIndex = (param, arg) => {
   if (Array.isArray(param)) {
-    throwOnNestedArrays(param);
+    if (isNestedArray(param)) {
+      if (isMatcherDeclaration(param)) {
+        return match(param, arg);
+      }
+      throw new Error("Arrays of middleware must only be of a single-dimension.");
+    }
     const { length } = param;
     if (length === 1) {
       console.warn('⚠️', 'Encountered a single array of middleware. This is unoptimized; you can just drop the array notation altogether.', '(', param, ')');
@@ -75,6 +91,8 @@ const execute = (param, arg) => Promise
         return jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
       } else if (typeCheck('Function', param)) {
         return param(arg);
+      } else if (typeCheck('{...}', param)) {
+        throw new Error('found an obj');
       }
       throw new Error(`Encountered unknown execution format, ${param}.`);
     },
