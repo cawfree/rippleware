@@ -6,132 +6,128 @@ import { typeCheck } from "type-check";
 
 export const isRippleware = e => typeCheck('Function', e) && typeCheck('Function', e.use);
 
-const parseConstructor = (...args) => {
-  if (typeCheck('(Function)', args)) {
-    const [createState] = args;
-    return createState;
-  } else if (args.length === 0) {
-    return () => null;
+const isSingleRippleware = ([r, ...extras]) => (extras.length === 0) && isRippleware(r);
+
+const transforms = Object.freeze({
+  identity: () => e => e,
+  first: () => ([e]) => e,
+  sep: () => ([...e]) => [].concat(...e),
+});
+
+const throwOnNestedArrays = e => e.map(f => {
+  if (Array.isArray(f)) {
+    throw new Error("Arrays of middleware must only be of a single-dimension.");
   }
-  throw new Error(`Expected empty constructor, or state initialization function. Encountered: ${args}.`);
-};
+});
 
-const executeArray = ([...exec], input) => [].concat(
-  ...exec.map(
-    (subExec, i) => executeArgument(
-      subExec,
-      input[i],
-    ),
-  ),
-);
-
-const executeDefs = (defs, input) => {
-  for (let i = 0; i < defs.length; i += 1) {
-    const def = defs[i];
-    if (typeCheck('(String, Function)', def)) {
-      const [match, fire] = def;
-      if (typeCheck(match, input)) {
-        return fire(input);
-      }
-    } else if (typeCheck('(Function, Function)', def)) {
-      const [match, fire] = def;
-      if (match(input)) {
-        return fire(input);
-      }
+const shouldIndex = (param, arg) => {
+  if (Array.isArray(param)) {
+    throwOnNestedArrays(param);
+    const { length } = param;
+    if (length === 1) {
+      console.warn('⚠️', 'Encountered a single array of middleware. This is unoptimized; you can just drop the array notation altogether.', '(', param, ')');
+      const [p] = param;
+      return shouldIndex(p, arg);
     }
+    return [
+      param,
+      param.map(() => arg),
+    ];
   }
-  throw new Error(`Encountered unexpected execution definition, ${defs}.`);
+  return [param, arg];
 };
 
-const executeFunction = (exec, input) => {
-  // TODO: Need to provide globalState.
-  const result = exec();
-  if (typeCheck('Function', result)) {
-    return result(input);
-  } else if (typeCheck('(String, Function)', result)) {
-    return executeDefs([result], input);
-  } else if (typeCheck('(Function, Function)', result)) {
-    return executeDefs([result], input);
-  } else if (Array.isArray(result)) {
-    return executeDefs(result, input);
+const ensureIndexed = ([...params], [...args]) => {
+  const nextParams = [];
+  const nextArgs = [];
+  const nextTransforms = [];
+  for (let i = 0; i < params.length; i += 1) {
+    const param = params[i];
+    const arg = args[i];
+    const [nextParam, nextArg] = shouldIndex(param, arg);
+    nextParams.push(nextParam);
+    nextArgs.push(isRippleware(param) ? [nextArg] : nextArg);
   }
-  throw new Error(`Encountered unexpected function definition ${result}.`);
+  return [nextParams, nextArgs, transforms.identity()];
 };
 
-const executeArgument = (exec, input) => {
-  if (Array.isArray(exec)) {
-    return executeArray(exec, input);
-  } else if (typeCheck("RegExp{source:String}", exec)) {
-    return jsonpath.query(input, exec.toString().replace(/^\/|\/$/g, ""));
-  } else if (isRippleware(exec)) {
-    return exec([input])
-      .then(([[data]]) => data);
-  } else if (typeCheck('Function', exec)) {
-    return executeFunction(exec, input);
+const propagate = ([...params], [...args]) => {
+  if (isSingleRippleware(params)) {
+    const [r] = params;
+    return [[r], [args], transforms.first()];
+  } else if (params.length === args.length) {
+    return ensureIndexed(params, args);
+  } else if (params.length > args.length) {
+    return ensureIndexed(params, [...args, ...[...Array(params.length - args.length)]]);
   }
-  throw new Error(`Unknown argument structure, ${exec}.`);
+  throw new Error(`There is no viable way to propagate between ${params} and ${args}.`);
 };
 
-const channelFromInvocation = (channelId, [...args], [...input]) => {
-  const [...inputWithPadding] = [...input, ...[...Array(input.length - args.length)]];
-  return Promise
-    .all(
-      args.map((exec, i) => executeArgument(exec, input[i])),
-    );
-};
+const execute = (param, arg) => Promise
+  .resolve()
+  .then(
+    () => {
+      if (isRippleware(param)) {
+        return param(...arg);
+      } else if (Array.isArray(param)) {
+        return Promise.all(param.map((p, i) => execute(p, arg[i])));
+      } else if (typeCheck('RegExp{source:String}', param)) {
+        return jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
+      } else if (typeCheck('Function', param)) {
+        return param(arg);
+      }
+      throw new Error(`Encountered unknown execution format, ${param}.`);
+    },
+  );
 
-const channelFromChannel = (channelId, [...args], [...input]) => channelFromInvocation(
-  channelId,
-  [...args],
-  [].concat(...input),
-);
+const executeStage = (rootId, stageId, [...params], [...args], nextTransform) => Promise
+  .resolve()
+  .then(
+    () => Promise
+      .all(
+        params.map(
+          (param, i) => execute(param, args[i]),
+        ),
+      )
+      .then(nextTransform),
+  );
 
-const isSingularRippleware = ([...args]) => {
-  const { length } = args;
-  const [first] = args;
-  return (length === 1) && isRippleware(first);
-};
-
-const channel = (id, [...params], [...input]) => params
+const executeParams = (id, [...params], [...args]) => params
   .reduce(
-    (p, [channelId, args], i) => p.then(
-      (dataFromLastStage) => {
-        if (isSingularRippleware(args)) {
-          const [sub] = args;
-          return sub(...dataFromLastStage)
-            .then(data => [].concat(...data));
-        }
-        const executeChannel = (i === 0) ? channelFromInvocation : channelFromChannel;
-        return executeChannel(
-          channelId,
-          args,
-          dataFromLastStage,
-        );
-      },
-    ),
-    Promise.resolve(input),
+    (p, [stageId, [...params], globalTransform]) => p
+      .then(
+        ([...dataFromLastStage]) => {
+          const [nextParams, nextArgs, nextTransform] = propagate(params, dataFromLastStage);
+          return executeStage(
+            id,
+            stageId,
+            [...nextParams],
+            [...nextArgs],
+            nextTransform,
+          )
+            .then(globalTransform);
+        },
+      ),
+    Promise.resolve([...args]),
   );
 
 const compose = (...args) => {
-  const createState = parseConstructor(...args);
 
   const params = [];
   const id = nanoid();
 
-  function r(...input) {
+  const r = function(...args) {
     r.use = null;
-    return channel(
-      id,
-      [...params],
-      [...input],
-    );
+    Object.freeze(params);
+    return executeParams(id, [...params], [...args]);
   };
 
   r.use = (...args) => {
-    if (args.length === 0) {
-      throw new Error('A call to use() must specify at least a single handler.');
-    }
-    params.push([nanoid(), args]);
+    params.push([nanoid(), args, transforms.identity()]);
+    return r;
+  };
+  r.sep = (...args) => {
+    params.push([nanoid(), args, transforms.sep()]);
     return r;
   };
 
