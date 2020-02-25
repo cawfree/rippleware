@@ -5,6 +5,8 @@ import { createStore } from "redux";
 
 import compose, { justOnce, print, noop } from "../src";
 
+const addOne = () => input => input + 1;
+
 const retainState = () => (input, { useState }) => {
   const [state] = useState(input);
   return state;
@@ -20,6 +22,34 @@ const truthyOnChange = () => (input, { useEffect }) => {
   );
   return changed;
 };
+
+it("should be possible to aggregate multiple middleware actions against a single channel of data", async () => {
+  const app = compose()
+    .use(
+      [addOne(), addOne()],
+    );
+  expect(await app(1)).toEqual([[2, 2]]);
+
+  const app2 = compose()
+    .use(
+      compose()
+        .use(
+          [addOne(), addOne()],
+        ),
+    );
+  expect(await app2(1)).toEqual([[2, 2]]);
+
+  const app3 = compose()
+    .use(
+      compose()
+        .use(
+          [addOne(), addOne()],
+          [addOne(), addOne()],
+        ),
+    );
+
+  expect(await app3(1, 2)).toEqual([[2, 2], [3, 3]]);
+});
 
 it("should be capable of providing a useState hook", async () => {
   const app = compose()
@@ -50,7 +80,9 @@ it("should be capable of providing a useEffect hook", async () => {
   expect(await app(1)).toEqual([true]);
   expect(await app(1)).toEqual([false]);
   expect(await app(1)).toEqual([false]);
-
+  expect(await app(0)).toEqual([true]);
+  expect(await app(0)).toEqual([false]);
+  expect(await app(0)).toEqual([false]);
 });
 
 //const addTwo = () => handle =>
@@ -68,38 +100,6 @@ it("should be capable of providing a useEffect hook", async () => {
 //    const [result] = useState(next);
 //    return result;
 //  });
-//
-//it("should be capable of exporting a hooks interface", async () => {
-//  const app = compose().use(handle =>
-//    handle("*", (hello, { useState }) => {
-//      const [state] = useState(() => ({ hello }));
-//      return state;
-//    })
-//  );
-//
-//  const result = await app("world");
-//  const result2 = await app("hello");
-//
-//  expect(result).toEqual({ hello: "world" });
-//  expect(result2).toEqual({ hello: "world" });
-//
-//  const app2 = compose().use(handle =>
-//    handle("*", (nextProps, { useEffect }) => {
-//      let didChange = false;
-//      useEffect(() => (didChange = true), [nextProps]);
-//      return didChange;
-//    })
-//  );
-//
-//  const result3 = await app2();
-//  expect(result3).toEqual(true);
-//  const result4 = await app2();
-//  expect(result4).toEqual(false);
-//  const result5 = await app2("hi");
-//  expect(result5).toEqual(true);
-//  const result6 = await app2("hi");
-//  expect(result6).toEqual(false);
-//});
 //
 //it("should define a composable structure", async () => {
 //  const app = compose().use(returnAConstant());
