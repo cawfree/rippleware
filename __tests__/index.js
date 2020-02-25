@@ -3,7 +3,7 @@ import "@babel/polyfill";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { justOnce, print, noop } from "../src";
+import compose, { isRippleware, justOnce, print, noop } from "../src";
 
 const addOne = () => input => input + 1;
 
@@ -22,6 +22,23 @@ const truthyOnChange = () => (input, { useEffect }) => {
   );
   return changed;
 };
+
+it("should be possible to use regular expressions to index on supplied data", async () => {
+  const imdb = [
+    {
+      t: 'Good!',
+      s: 1,
+    },
+    {
+      t: 'Bad!',
+      s: 0,
+    },
+  ];
+  const app = compose()
+    .sep([/$.*.t/, /$.*.s/]);
+
+  expect(await app(imdb)).toEqual([['Good!', 'Bad!'], [1, 0]]);
+});
 
 it("should be possible to aggregate multiple middleware actions against a single channel of data", async () => {
   const app = compose()
@@ -85,34 +102,18 @@ it("should be capable of providing a useEffect hook", async () => {
   expect(await app(0)).toEqual([false]);
 });
 
-//const addTwo = () => handle =>
-//  handle("[Number]", next => {
-//    return next.map(e => e + 2);
-//  });
-//
-//const returnAConstant = () => handle => handle("*", next => [1, 2, [3]]);
-//
-//const somethingThatAddsOneToAScalar = () => handle =>
-//  handle("Number", next => next + 1);
-//
-//const retainState = () => handle =>
-//  handle("*", (next, { useState }) => {
-//    const [result] = useState(next);
-//    return result;
-//  });
-//
-//it("should define a composable structure", async () => {
-//  const app = compose().use(returnAConstant());
-//  const res = await app();
-//  expect(res).toEqual([1, 2, [3]]);
-//});
-//
-//it("should not be possible to append new middleware after invoking a function", async () => {
-//  const app = compose().use(handle => handle("*", () => true));
-//  expect(await app()).toBeTruthy();
-//  expect(() => app.use(handle => handle("*", () => true))).toThrow();
-//});
-//
+it("should not be possible to append new middleware after invocation, but the instance must still *look* like rippleware", async () => {
+  const app = compose()
+    .use(() => true);
+
+  expect(await app(undefined)).toEqual([true]);
+
+  expect(() => app.use(() => true)).toThrow();
+  expect(() => app.sep(() => true)).toThrow();
+
+  expect(isRippleware(app)).toEqual(true);
+});
+
 //it("should export an argument filtering/indexing interface", async () => {
 //  const app = compose()
 //    .use(addTwo(), addTwo())
