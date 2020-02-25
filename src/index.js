@@ -4,7 +4,9 @@ import klona from "klona";
 import nanoid from "nanoid";
 import { typeCheck } from "type-check";
 
-export const isRippleware = e => typeCheck('Function', e) && typeCheck('Function', e.use);
+import createHooks from "./createHooks";
+
+export const isRippleware = e => typeCheck('Function', e) && typeCheck('Function', e.use) && typeCheck('Function', e.sep);
 
 const isSingleRippleware = ([r, ...extras]) => (extras.length === 0) && isRippleware(r);
 
@@ -25,13 +27,13 @@ const isMatcherDeclaration = e => typeCheck(
 );
 
 const match = (params, arg) => [
-  (e) => {
+  (e, hooks) => {
     for (let i = 0; i < params.length; i += 1) {
       const [shouldMatch, exec] = params[i];
       if (typeCheck('Function', shouldMatch) && shouldMatch(arg)) {
-        return exec(arg);
+        return exec(arg, ...extras);
       } else if (typeCheck('String', shouldMatch) && typeCheck(shouldMatch, arg)) {
-        return exec(arg);
+        return exec(arg, ...extras);
       }
     }
     throw new Error(`Unable to find a valid matcher for ${arg}.`);
@@ -87,36 +89,36 @@ const propagate = ([...params], [...args]) => {
   throw new Error(`There is no viable way to propagate between ${params} and ${args}.`);
 };
 
-const execute = (param, arg) => Promise
+const execute = (param, arg, { ...hooks }) => Promise
   .resolve()
   .then(
     () => {
       if (isRippleware(param)) {
         return param(...arg);
       } else if (Array.isArray(param)) {
-        return Promise.all(param.map((p, i) => execute(p, arg[i])));
+        return Promise.all(param.map((p, i) => execute(p, arg[i], { ...hooks })));
       } else if (typeCheck('RegExp{source:String}', param)) {
         return jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
       } else if (typeCheck('Function', param)) {
-        return param(arg);
+        return param(arg, { ...hooks });
       }
       throw new Error(`Encountered unknown execution format, ${param}.`);
     },
   );
 
-const executeStage = (rootId, stageId, [...params], [...args], nextTransform) => Promise
+const executeStage = (rootId, stageId, nextTransform, [...params], [...args], { ...hooks }) => Promise
   .resolve()
   .then(
     () => Promise
       .all(
         params.map(
-          (param, i) => execute(param, args[i]),
+          (param, i) => execute(param, args[i], { ...hooks }),
         ),
       )
       .then(nextTransform),
   );
 
-const executeParams = (id, [...params], [...args]) => params
+const executeParams = (id, { ...hooks }, [...params], [...args]) => params
   .reduce(
     (p, [stageId, [...params], globalTransform]) => p
       .then(
@@ -125,9 +127,10 @@ const executeParams = (id, [...params], [...args]) => params
           return executeStage(
             id,
             stageId,
+            nextTransform,
             [...nextParams],
             [...nextArgs],
-            nextTransform,
+            { ...hooks },
           )
             .then(globalTransform);
         },
@@ -135,15 +138,26 @@ const executeParams = (id, [...params], [...args]) => params
     Promise.resolve([...args]),
   );
 
+const throwOnInvokeThunk = name => () => {
+  throw new Error(
+    `It is not possible to call ${name}() after invoking.`,
+  );
+};
+
 const compose = (...args) => {
 
   const params = [];
   const id = nanoid();
 
+  const [hooks, resetHooks] = createHooks();
+
   const r = function(...args) {
-    r.use = null;
-    Object.freeze(params);
-    return executeParams(id, [...params], [...args]);
+    resetHooks();
+
+    r.use = throwOnInvokeThunk("use");
+    r.sep = throwOnInvokeThunk("sep");
+
+    return executeParams(id, hooks, params, args);
   };
 
   r.use = (...args) => {

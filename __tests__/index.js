@@ -5,9 +5,33 @@ import { createStore } from "redux";
 
 import compose, { justOnce, print, noop } from "../src";
 
-it("should be capable of providing a hooks interface", async () => {
-  expect(true)
-    .toBeTruthy();
+const retainState = () => (input, { useState }) => {
+  const [state] = useState(input);
+  return state;
+};
+
+it("should be capable of providing a useState hook", async () => {
+  const app = compose()
+    .use(retainState());
+
+  // TODO: It looks like we can't persist truthy values.
+  expect(await app(1)).toEqual([1]);
+  expect(await app(2)).toEqual([1]);
+
+  const app2 = compose()
+    .use(retainState(), retainState())
+    .use(
+      compose()
+        .use(retainState(), retainState()),
+    );
+
+  expect(await app2(3, 4)).toEqual([3, 4]);
+  expect(await app2(5, 6)).toEqual([3, 4]);
+
+
+  //expect(await app(undefined)).toEqual([1, 1]);
+  //expect(await app(undefined)).toEqual([1, 1]);
+  //expect(await app(undefined)).toEqual([1, 1]);
 });
 
 //const addTwo = () => handle =>
