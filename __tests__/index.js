@@ -10,6 +10,17 @@ const retainState = () => (input, { useState }) => {
   return state;
 };
 
+const truthyOnChange = () => (input, { useEffect }) => {
+  let changed = false;
+  useEffect(
+    () => {
+      changed = true;
+    },
+    [input],
+  );
+  return changed;
+};
+
 it("should be capable of providing a useState hook", async () => {
   const app = compose()
     .use(retainState());
@@ -27,11 +38,19 @@ it("should be capable of providing a useState hook", async () => {
 
   expect(await app2(3, 4)).toEqual([3, 4]);
   expect(await app2(5, 6)).toEqual([3, 4]);
+});
 
+it("should be capable of providing a useEffect hook", async () => {
+  const app = compose()
+    .use(truthyOnChange());
 
-  //expect(await app(undefined)).toEqual([1, 1]);
-  //expect(await app(undefined)).toEqual([1, 1]);
-  //expect(await app(undefined)).toEqual([1, 1]);
+  expect(await app(0)).toEqual([true]);
+  expect(await app(0)).toEqual([false]);
+  expect(await app(0)).toEqual([false]);
+  expect(await app(1)).toEqual([true]);
+  expect(await app(1)).toEqual([false]);
+  expect(await app(1)).toEqual([false]);
+
 });
 
 //const addTwo = () => handle =>
