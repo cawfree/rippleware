@@ -27,7 +27,7 @@ const isMatcherDeclaration = e => typeCheck(
 );
 
 const match = (params, arg) => [
-  (e, hooks) => {
+  (e, ...extras) => {
     for (let i = 0; i < params.length; i += 1) {
       const [shouldMatch, exec] = params[i];
       if (typeCheck('Function', shouldMatch) && shouldMatch(arg)) {

@@ -23,6 +23,38 @@ const truthyOnChange = () => (input, { useEffect }) => {
   return changed;
 };
 
+it("should be possible to define a matcher array", async () => {
+  const app = compose()
+    .use(
+      [
+        ['Number', () => 'This is a number.'],
+        ['[Number]', () => 'This is an array of numbers.'],
+        ['*', () => 'Something else.'],
+      ],
+    );
+
+  expect(await app(0)).toEqual(['This is a number.']);
+  expect(await app([0])).toEqual(['This is an array of numbers.']);
+  expect(await app(true)).toEqual(['Something else.']);
+
+  const app2 = compose()
+    .use(
+      compose()
+        .use(
+          [
+            [input => input > 0.5, () => 'Greater!'],
+            ['[Number]', () => 'This is also an array of numbers.'],
+          ],
+        ),
+    );
+
+  expect(await app2(1)).toEqual(['Greater!']);
+  expect(app2(0.49))
+    .rejects
+    .toBeTruthy();
+  expect(await app2([1, 2, 3])).toEqual(['This is also an array of numbers.']);
+});
+
 it("should be possible to use regular expressions to index on supplied data", async () => {
   const imdb = [
     {
@@ -114,64 +146,6 @@ it("should not be possible to append new middleware after invocation, but the in
   expect(isRippleware(app)).toEqual(true);
 });
 
-//it("should export an argument filtering/indexing interface", async () => {
-//  const app = compose()
-//    .use(addTwo(), addTwo())
-//    .use(addTwo(), addTwo())
-//    .use(returnAConstant())
-//    .use(
-//      [somethingThatAddsOneToAScalar()],
-//      [somethingThatAddsOneToAScalar()],
-//      [[somethingThatAddsOneToAScalar()]]
-//    );
-//
-//  const result = await app([2], [2]);
-//
-//  expect(result).toEqual([2, 3, 4]);
-//
-//  const app2 = compose()
-//    .use(addTwo(), addTwo())
-//    .use(addTwo(), addTwo());
-//
-//  const result2 = await app2([2], [2]);
-//
-//  expect(result2).toEqual([[6], [6]]);
-//});
-//
-//it("should permit middleware to retain state between executions", async () => {
-//  const app = compose().use(retainState());
-//
-//  const result = await app(500);
-//  const otherResult = await app(206);
-//
-//  expect(result).toEqual(500);
-//  expect(otherResult).toEqual(500);
-//
-//  const app3 = compose().use([retainState()]);
-//
-//  const result3 = await app3([500]);
-//
-//  const otherResult3 = await app3([206]);
-//
-//  expect(result3).toEqual(500);
-//  expect(otherResult3).toEqual(500);
-//
-//  const app4 = compose().use(retainState());
-//
-//  const result4 = await app4([500, 501]);
-//
-//  const otherResult4 = await app4([206, 207]);
-//
-//  expect(result4).toEqual([500, 501]);
-//  expect(otherResult4).toEqual([500, 501]);
-//
-//  const app5 = compose().use([retainState()]);
-//
-//  const result5 = await app5([500]);
-//
-//  expect(result5).toEqual(500);
-//});
-//
 //it("should allow you to define custom matcher functions", async () => {
 //  const customMatcher = input => input === "secret";
 //  const app = compose().use(handle => handle(customMatcher, () => true));
