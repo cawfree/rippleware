@@ -7,10 +7,8 @@ it("should channel data in a predictable manner", async () => {
   const app = compose()
     .use(
       [
-        ['*', () => null],
-        ['*', () => null],
-        ['*', () => null],
-        ['*', () => null],
+        ['[Number]', () => 'numbers'],
+        ['*', () => 'not numbers'],
       ],
     );
 

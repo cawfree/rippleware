@@ -24,9 +24,17 @@ const isMatcherDeclaration = e => typeCheck(
   e,
 );
 
-const match = (param, arg) => [
+const match = (params, arg) => [
   (e) => {
-    console.log('would match here');
+    for (let i = 0; i < params.length; i += 1) {
+      const [shouldMatch, exec] = params[i];
+      if (typeCheck('Function', shouldMatch) && shouldMatch(arg)) {
+        return exec(arg);
+      } else if (typeCheck('String', shouldMatch) && typeCheck(shouldMatch, arg)) {
+        return exec(arg);
+      }
+    }
+    throw new Error(`Unable to find a valid matcher for ${arg}.`);
   },
   arg,
 ];
