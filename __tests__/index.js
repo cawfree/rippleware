@@ -23,6 +23,22 @@ const truthyOnChange = () => (input, { useEffect }) => {
   return changed;
 };
 
+const INCREMENT = "reducer/INCREMENT";
+const increment = () => ({ type: INCREMENT });
+
+const buildStore = () => {
+  const initialState = Map({ cnt: 0 });
+  const reducer = (state = initialState, { type, ...extras }) => {
+    switch (type) {
+      case INCREMENT:
+        return state.set("cnt", state.get("cnt") + 1);
+      default:
+        return state;
+    }
+  };
+  return createStore(reducer);
+};
+
 it("should be possible to define a matcher array", async () => {
   const app = compose()
     .use(
@@ -146,149 +162,76 @@ it("should not be possible to append new middleware after invocation, but the in
   expect(isRippleware(app)).toEqual(true);
 });
 
-//it("should allow you to define custom matcher functions", async () => {
-//  const customMatcher = input => input === "secret";
-//  const app = compose().use(handle => handle(customMatcher, () => true));
-//
-//  expect(await app("secret")).toEqual(true);
-//  expect(app("hello")).rejects.toBeTruthy();
-//});
-//
-//it("should propagate scalar values in a common-sense way", async () => {
-//  const app = compose()
-//    .use(handle => handle("Number", n => n + 1))
-//    .use(handle => handle("Number", n => n + 1));
-//
-//  expect(await app(1)).toEqual(3);
-//});
-//
-//it("should be possible to use shorthand declarations", async () => {
-//  const app = compose().use("*", input => input + 1);
-//  const res = await app(2);
-//  expect(res).toEqual(3);
-//});
-//
-//it("should be possible to use regular expressions to index objects", async () => {
-//  const reviews = [
-//    { t: "Hello", s: 0 },
-//    { t: "Goodbye", s: 1 },
-//    { t: "Hello2", s: 0.1 },
-//    { t: "Goodbye2", s: 0.9 }
-//  ];
-//
-//  const app = compose().use(/$.*.t/);
-//
-//  const result = await app(reviews);
-//
-//  expect(result).toEqual(["Hello", "Goodbye", "Hello2", "Goodbye2"]);
-//
-//  const app2 = compose().use(/$.*.t/, /$.*.s/);
-//
-//  const result2 = await app2(reviews, reviews);
-//
-//  expect(result2).toEqual([
-//    ["Hello", "Goodbye", "Hello2", "Goodbye2"],
-//    [0, 1, 0.1, 0.9]
-//  ]);
-//
-//  const app3 = compose().use([/$.*.t/, /$.*.s/]);
-//
-//  const result3 = await app3(reviews);
-//
-//  expect(result3).toEqual([
-//    ["Hello", "Goodbye", "Hello2", "Goodbye2"],
-//    [0, 1, 0.1, 0.9]
-//  ]);
-//
-//  const app4 = compose().use([/$.*.t/, /$.*.s/], [/$.*.t/, /$.*.s/]);
-//
-//  const result4 = await app4(reviews, reviews);
-//
-//  expect(result4).toEqual([
-//    [
-//      ["Hello", "Goodbye", "Hello2", "Goodbye2"],
-//      [0, 1, 0.1, 0.9]
-//    ],
-//    [
-//      ["Hello", "Goodbye", "Hello2", "Goodbye2"],
-//      [0, 1, 0.1, 0.9]
-//    ]
-//  ]);
-//
-//  const app5 = compose().use([[/$.*.t/], [/$.*.s/]]);
-//
-//  const result5 = await app5(reviews);
-//
-//  expect(result5).toEqual([
-//    [["Hello", "Goodbye", "Hello2", "Goodbye2"]],
-//    [[0, 1, 0.1, 0.9]]
-//  ]);
-//});
-//
-//it("should be capable of executing the example code", async () => {
-//  const app = compose().use(handle => handle("*", () => "Hello, world!"));
-//
-//  expect(await app()).toEqual("Hello, world!");
-//
-//  const app2 = compose().use(handle => {
-//    handle("String", () => "You passed a string!");
-//    handle("*", () => "You didn't pass a string!");
-//  });
-//
-//  expect(await app2("This is a string.")).toEqual("You passed a string!");
-//  expect(await app2({ life: 42 })).toEqual("You didn't pass a string!");
-//
-//  const addOneToANumber = () => handle => handle("Number", n => n + 1);
-//
-//  const app3 = compose().use([addOneToANumber()]);
-//
-//  expect(await app3([2])).toEqual(3);
-//
-//  const app4 = compose().use(handle =>
-//    handle("*", (next, { useState }) => {
-//      const [r] = useState(next);
-//      return r;
-//    })
-//  );
-//
-//  expect(await app4("The only value this will ever return.")).toEqual(
-//    "The only value this will ever return."
-//  );
-//
-//  expect(await app4("Some other value")).toEqual(
-//    "The only value this will ever return."
-//  );
-//
-//  const app5 = compose().use(/$.*.t/);
-//
-//  expect(await app5([{ t: "hi" }, { t: "bye" }])).toEqual(["hi", "bye"]);
-//
-//  const app6 = compose().use(/$.*.t/, /$.*.s/);
-//
-//  expect(await app6([{ t: "hi" }], [{ s: 0 }])).toEqual([["hi"], [0]]);
-//
-//  const app7 = compose().use([/$.*.t/, /$.*.s/]);
-//
-//  expect(
-//    await app7([
-//      { t: "hi", s: 0 },
-//      { t: "bye", s: 1 }
-//    ])
-//  ).toEqual([
-//    ["hi", "bye"],
-//    [0, 1]
-//  ]);
-//
-//  const app8 = compose().use(somethingThatAddsOneToAScalar(), noop());
-//
-//  expect(await app8(0, 0)).toEqual([1, 0]);
-//
-//  const app9 = compose()
-//    .use([somethingThatAddsOneToAScalar(), noop()]);
-//
-//  expect(await app9([0, 1])).toEqual([1, 1]);
-//
-//});
+it("should propagate values in a common-sense way", async () => {
+  const app = compose()
+    .use(i => i, i => i, i => i);
+
+  expect(await app(1, 2, 3)).toEqual([1, 2, 3]);
+
+  const app2 = compose()
+    .use(
+      i => i,
+      i => i,
+    )
+    .use(
+      compose()
+        .use(
+          compose()
+            .use(
+              i => i,
+              i => i,
+            ),
+        ),
+    );
+
+  expect(await app2(1, 2)).toEqual([1, 2]);
+
+  const app3 = compose()
+    .use(i => i);
+
+  expect(await app3(3))
+    .toEqual([3]);
+  
+  expect(app3(3, 5))
+    .rejects
+    .toBeTruthy();
+
+  const app4 = compose()
+    .use(i => i, i => i)
+    .use(
+      compose()
+        .use(
+          i => i,
+          i => i,
+        ),
+    );
+
+  expect(await app4(1)).toEqual([1, undefined]);
+});
+
+it("must support the instantiation and propagation of global state", async () => {
+  const app = compose(buildStore)
+    .use(
+      (_, { useGlobal }) => {
+        const { dispatch } = useGlobal();
+        dispatch(increment());
+        return null;
+      },
+    )
+    .use(
+      (_, { useGlobal }) => {
+        const { getState } = useGlobal();
+        const cnt = getState().get('cnt');
+        return cnt;
+      },
+    );
+
+  expect(await app()).toEqual([1]);
+  expect(await app()).toEqual([2]);
+  expect(await app()).toEqual([3]);
+});
+
+
 //
 //it("should be possible to execute some middleware only once", async () => {
 //  const app = compose().use(justOnce("*", input => !input));
@@ -302,82 +245,9 @@ it("should not be possible to append new middleware after invocation, but the in
 //  expect(result3).toEqual(true);
 //});
 //
-//const INCREMENT = "reducer/INCREMENT";
-//const increment = () => ({ type: INCREMENT });
-//
-//const buildStore = () => {
-//  const initialState = Map({ cnt: 0 });
-//  const reducer = (state = initialState, { type, ...extras }) => {
-//    switch (type) {
-//      case INCREMENT:
-//        return state.set("cnt", state.get("cnt") + 1);
-//      default:
-//        return state;
-//    }
-//  };
-//  return createStore(reducer);
-//};
-//
-//it("should be possible to implement functional global state", async () => {
-//  const app = compose(buildStore).use("*", () => true);
-//
-//  const app2 = compose(buildStore)
-//    .use("*", (input, { useGlobal }) => {
-//      const { dispatch } = useGlobal();
-//      dispatch(increment());
-//      dispatch(increment());
-//      dispatch(increment());
-//      dispatch(increment());
-//      return input;
-//    })
-//    .use("*", (input, { useGlobal }) => {
-//      const { getState } = useGlobal();
-//      return getState().get("cnt");
-//    });
-//
-//  const a = await app();
-//  const b = await app2().then(e => e + 1);
-//  const c = await app2().then(e => e + 1);
-//
-//  const app3 = compose(buildStore)
-//    .use("*", (_, { useGlobal }) => useGlobal().dispatch(increment()))
-//    .use(
-//      justOnce("*", (_, { useGlobal }) =>
-//        useGlobal()
-//          .getState()
-//          .get("cnt")
-//      )
-//    );
-//
-//  expect(a).toEqual(true);
-//  expect(b).toEqual(5);
-//  expect(c).toEqual(9);
-//
-//  expect(await app3()).toEqual(1);
-//});
-//
-//it("should be possible to access global state from the handler level", async () => {
-//  const app = compose(buildStore).use(handle =>
-//    handle("*", (_, { useGlobal }) =>
-//      useGlobal()
-//        .getState()
-//        .get("cnt")
-//    )
-//  );
-//
-//  expect(await app()).toEqual(0);
-//
-//  const app2 = compose(buildStore).use((handle, { dispatch }) => {
-//    dispatch(increment());
-//    return handle("*", (_, { useGlobal }) =>
-//      useGlobal()
-//        .getState()
-//        .get("cnt")
-//    );
-//  });
-//
-//  expect(await app2()).toEqual(1);
-//});
+
+
+
 //
 //it("should be possible to declare and consume meta to permit the propagation of hidden properties", async () => {
 //  const numericHandler = () => handle =>
@@ -601,4 +471,69 @@ it("should not be possible to append new middleware after invocation, but the in
 //    );
 //
 //  expect(await app2(1,2,3)).toEqual([1,2,3]);
+//});
+
+//it("should be capable of executing the example code", async () => {
+//  const app = compose().use(handle => handle("*", () => "Hello, world!"));
+//
+//  expect(await app()).toEqual("Hello, world!");
+//
+//  const app2 = compose().use(handle => {
+//    handle("String", () => "You passed a string!");
+//    handle("*", () => "You didn't pass a string!");
+//  });
+//
+//  expect(await app2("This is a string.")).toEqual("You passed a string!");
+//  expect(await app2({ life: 42 })).toEqual("You didn't pass a string!");
+//
+//  const addOneToANumber = () => handle => handle("Number", n => n + 1);
+//
+//  const app3 = compose().use([addOneToANumber()]);
+//
+//  expect(await app3([2])).toEqual(3);
+//
+//  const app4 = compose().use(handle =>
+//    handle("*", (next, { useState }) => {
+//      const [r] = useState(next);
+//      return r;
+//    })
+//  );
+//
+//  expect(await app4("The only value this will ever return.")).toEqual(
+//    "The only value this will ever return."
+//  );
+//
+//  expect(await app4("Some other value")).toEqual(
+//    "The only value this will ever return."
+//  );
+//
+//  const app5 = compose().use(/$.*.t/);
+//
+//  expect(await app5([{ t: "hi" }, { t: "bye" }])).toEqual(["hi", "bye"]);
+//
+//  const app6 = compose().use(/$.*.t/, /$.*.s/);
+//
+//  expect(await app6([{ t: "hi" }], [{ s: 0 }])).toEqual([["hi"], [0]]);
+//
+//  const app7 = compose().use([/$.*.t/, /$.*.s/]);
+//
+//  expect(
+//    await app7([
+//      { t: "hi", s: 0 },
+//      { t: "bye", s: 1 }
+//    ])
+//  ).toEqual([
+//    ["hi", "bye"],
+//    [0, 1]
+//  ]);
+//
+//  const app8 = compose().use(somethingThatAddsOneToAScalar(), noop());
+//
+//  expect(await app8(0, 0)).toEqual([1, 0]);
+//
+//  const app9 = compose()
+//    .use([somethingThatAddsOneToAScalar(), noop()]);
+//
+//  expect(await app9([0, 1])).toEqual([1, 1]);
+//
 //});

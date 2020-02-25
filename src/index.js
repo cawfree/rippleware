@@ -144,12 +144,24 @@ const throwOnInvokeThunk = name => () => {
   );
 };
 
+const parseConstructor = (...args) => {
+  if (typeCheck('(Function)', args)) {
+    return args;
+  } else if (args.length === 0) {
+    return [() => undefined];
+  }
+  throw new Error("Unsuitable arguments.");
+};
+
 const compose = (...args) => {
 
   const params = [];
   const id = nanoid();
 
+  const [globalState] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
+
+  const global = globalState();
 
   const r = function(...args) {
     resetHooks();
@@ -157,7 +169,17 @@ const compose = (...args) => {
     r.use = throwOnInvokeThunk("use");
     r.sep = throwOnInvokeThunk("sep");
 
-    return executeParams(id, hooks, params, args);
+    const extraHooks = {
+      ...hooks,
+      useGlobal: () => global,
+    };
+
+    return executeParams(
+      id,
+      extraHooks,
+      params,
+      args,
+    );
   };
 
   r.use = (...args) => {
