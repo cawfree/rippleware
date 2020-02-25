@@ -20,9 +20,8 @@ export default () => {
         currentHook++;
       },
       useState(initialValue) {
-        hooks[currentHook] =
-          hooks[currentHook] ||
-          (typeCheck("Function", initialValue) ? initialValue() : initialValue);
+        const hasDeclaredHook = hooks[currentHook] !== undefined;
+        hooks[currentHook] = hasDeclaredHook ? hooks[currentHook] : (typeCheck("Function", initialValue) ? initialValue() : initialValue);
 
         const setStateHookIndex = currentHook;
         const setState = newState => (hooks[setStateHookIndex] = newState);

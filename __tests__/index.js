@@ -15,8 +15,8 @@ it("should be capable of providing a useState hook", async () => {
     .use(retainState());
 
   // TODO: It looks like we can't persist truthy values.
-  expect(await app(1)).toEqual([1]);
-  expect(await app(2)).toEqual([1]);
+  expect(await app(0)).toEqual([0]);
+  expect(await app(2)).toEqual([0]);
 
   const app2 = compose()
     .use(retainState(), retainState())
