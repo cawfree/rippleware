@@ -99,8 +99,6 @@ const execute = (param, arg) => Promise
         return jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
       } else if (typeCheck('Function', param)) {
         return param(arg);
-      } else if (typeCheck('{...}', param)) {
-        throw new Error('found an obj');
       }
       throw new Error(`Encountered unknown execution format, ${param}.`);
     },
