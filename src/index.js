@@ -221,6 +221,17 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
+const evaluateArgs = (args, { ...hooks }) => args.map(
+  (arg) => {
+    if (typeCheck('(String, Function)', arg)) {
+      const [secret, fn] = arg;
+      if (secret === secrets.pre) {
+        return fn({ ...hooks });
+      }
+    }
+    return arg;
+  });
+
 const evaluateParams = (params, { ...hooks }) => params
   .map(
     ([id, args, transform, secret]) => {
@@ -232,8 +243,21 @@ const evaluateParams = (params, { ...hooks }) => params
           secret,
         ];
       }
-      return [id, args, transform, secret];
+      return [
+        id,
+        args,
+        transform,
+        secret,
+      ];
     },
+  )
+  .map(
+    ([ id, args, transform, secret ]) => [
+      id,
+      evaluateArgs(args, { ...hooks }),
+      transform,
+      secret,
+    ],
   );
 
 const isInternalConstructor = (maybeSecret, ...args) =>
@@ -317,5 +341,13 @@ export const justOnce = (...args) => (input, { useState, useGlobal }) => {
 };
 
 export const noop = () => input => input;
+
+export const pre = (...args) => {
+  if (typeCheck('(Function)', args)) {
+    const [fn] = args;
+    return [secrets.pre, fn];
+  }
+  throw new Error('Only a single function may be passed to the pre() helper.');
+};
 
 export default compose;

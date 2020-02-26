@@ -1,7 +1,7 @@
 {
   "name": "rippleware",
   "version": "0.2.0-alpha.2",
-  "description": "🚣 A middleware-inspired toolbox that promotes function extensibility.",
+  "description": "🚣 A middleware-inspired toolbox that promotes stateful function extensibility.",
   "main": "dist",
   "repository": "https://github.com/cawfree/rippleware",
   "author": "Alex Thomas (@cawfree) <hello@cawfree.com>",

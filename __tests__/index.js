@@ -3,7 +3,7 @@ import "@babel/polyfill";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { isRippleware, justOnce, noop } from "../src";
+import compose, { isRippleware, justOnce, noop, pre } from "../src";
 
 const addOne = () => input => input + 1;
 
@@ -408,4 +408,43 @@ it("should be possible to dynamically generate parameters based upon pre-evaluat
     );
 
   expect(await app4(5)).toEqual([[5, 5], [undefined, undefined]]);
+});
+
+it("should be possible to use pre-evaluation on individual parameters", async () => {
+  const app = compose(buildStore)
+    .use((_, { useGlobal }) => {
+      const { dispatch } = useGlobal();
+      dispatch(increment());
+      return null;
+    })
+    .use(pre(({ useGlobal }) => {
+      const { getState } = useGlobal();
+      const cnt = getState().get('cnt');
+      return () => cnt;
+    }));
+
+  expect(await app()).toEqual([0]);
+
+  const app2 = compose()
+    .use(
+      pre(() => i => i),
+      pre(() => i => i),
+    );
+
+  expect(await app2()).toEqual([undefined, undefined]);
+
+  const app3 = compose(buildStore)
+    .use(
+      (_, { useGlobal }) => useGlobal().getState().get('cnt'),
+    )
+    .use(
+      pre(({ useGlobal }) => {
+        const { dispatch } = useGlobal();
+        dispatch(increment());
+        return i => i;
+      }),
+    );
+
+  expect(await app3()).toEqual([1]);
+  expect(await app3()).toEqual([1]);
 });
