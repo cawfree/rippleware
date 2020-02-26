@@ -302,6 +302,27 @@ it("must not override the global state of nested middleware if they have one def
   expect(await app2()).toEqual([0]);
 });
 
+it("should allow the propagation of the useMeta hook", async () => {
+  const app = compose()
+    .use((input, { useMeta }) => useMeta(5))
+    .use((input, { useMeta }) => useMeta());
+
+  expect(await app()).toEqual([5]);
+
+  const app2 = compose()
+    .use((_, { useMeta }) => useMeta(5))
+    .use(
+      compose()
+        .use(
+          (_, { useMeta }) => {
+            console.log(useMeta());
+          },
+        ),
+    );
+
+  await app2();
+});
+
 
 //
 //it("should be possible to execute some middleware only once", async () => {

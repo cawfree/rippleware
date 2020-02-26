@@ -28,7 +28,7 @@ const isMatcherDeclaration = e => typeCheck(
   e,
 );
 
-const match = (params, arg) => [
+const match = (params, arg, meta) => [
   (e, ...extras) => {
     for (let i = 0; i < params.length; i += 1) {
       const [shouldMatch, exec] = params[i];
@@ -41,13 +41,14 @@ const match = (params, arg) => [
     throw new Error(`Unable to find a valid matcher for ${arg}.`);
   },
   arg,
+  meta,
 ];
 
-const shouldIndex = (param, arg) => {
+const shouldIndex = (param, arg, meta) => {
   if (Array.isArray(param)) {
     if (isNestedArray(param)) {
       if (isMatcherDeclaration(param)) {
-        return match(param, arg);
+        return match(param, arg, meta);
       }
       throw new Error("Arrays of middleware must only be of a single-dimension.");
     }
@@ -55,55 +56,64 @@ const shouldIndex = (param, arg) => {
     if (length === 1) {
       console.warn('⚠️', 'Encountered a single array of middleware. This is unoptimized; you can just drop the array notation altogether.', '(', param, ')');
       const [p] = param;
-      return shouldIndex(p, arg);
+      return shouldIndex(p, arg, meta);
     }
     return [
       param,
       param.map(() => arg),
+      param.map(() => meta),
     ];
   }
-  return [param, arg];
+  return [param, arg, meta];
 };
 
-const ensureIndexed = ([...params], [...args]) => {
+const ensureIndexed = ([...params], [...args], [...metas]) => {
   const nextParams = [];
   const nextArgs = [];
+  const nextMetas = [];
   const nextTransforms = [];
   for (let i = 0; i < params.length; i += 1) {
     const param = params[i];
     const arg = args[i];
-    const [nextParam, nextArg] = shouldIndex(param, arg);
+    const meta = metas[i];
+
+    const [nextParam, nextArg, nextMeta] = shouldIndex(param, arg, meta);
+
     nextParams.push(nextParam);
     nextArgs.push(isRippleware(param) ? [nextArg] : nextArg);
+    nextMetas.push(isRippleware(param) ? [nextMeta] : nextMeta);
   }
-  return [nextParams, nextArgs, transforms.identity()];
+  return [nextParams, nextArgs, nextMetas, transforms.identity()];
 };
 
-const propagate = ([...params], [...args]) => {
+const propagate = ([...params], [...args], [...metas]) => {
   if (isSingleRippleware(params)) {
     const [r] = params;
-    return [[r], [args], transforms.first()];
+    const [m] = metas;
+    return [[r], [args], [m], transforms.first()];
   } else if (params.length === args.length) {
-    return ensureIndexed(params, args);
+    return ensureIndexed(params, args, metas);
   } else if (params.length > args.length) {
-    return ensureIndexed(params, [...args, ...[...Array(params.length - args.length)]]);
+    const p = [...Array(params.length - args.length)];
+    return ensureIndexed(params, [...args, ...p], [...metas, ...p]);
   }
   throw new Error(`There is no viable way to propagate between ${params} and ${args}.`);
 };
 
-const execute = (param, arg, { ...hooks }) => {
+const execute = (param, arg, meta, { ...hooks }) => {
   return Promise
     .resolve()
     .then(
       () => {
         if (isRippleware(param)) {
           const { useGlobal } = hooks;
+          console.log('nested meta is',meta);
           const opts = Object.freeze({
             useGlobal,
           });
           return param(secret, opts, ...arg);
         } else if (Array.isArray(param)) {
-          return Promise.all(param.map((p, i) => execute(p, arg[i], { ...hooks })))
+          return Promise.all(param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks })))
             .then(results => [
               results.map(([data]) => data),
               results.map(([_, meta]) => meta),
@@ -112,25 +122,39 @@ const execute = (param, arg, { ...hooks }) => {
           return Promise.resolve(
             [
               jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, "")),
-              'some regex meta',
+              meta,
             ],
           );
         } else if (typeCheck('Function', param)) {
-          return Promise.resolve(param(arg, { ...hooks }))
-            .then(data => [data, 'some function meta']);
+          let metaOut = meta;
+          const extraHooks = {
+            ...hooks,
+            useMeta: (...args) => {
+              if (args.length === 0) {
+                return meta;
+              } else if (args.length === 1) {
+                const [nextMeta] = args;
+                metaOut = nextMeta;
+              } else {
+                metaOut = args;
+              }
+            },
+          };
+          return Promise.resolve(param(arg, { ...extraHooks }))
+            .then(data => [data, metaOut]);
         }
         throw new Error(`Encountered unknown execution format, ${param}.`);
       },
     );
 };
 
-const executeStage = (rootId, stageId, nextTransform, [...params], [...args], { ...hooks }) => Promise
+const executeStage = (rootId, stageId, nextTransform, [...params], [...args], [...metas], { ...hooks }) => Promise
   .resolve()
   .then(
     () => Promise
       .all(
         params.map(
-          (param, i) => execute(param, args[i], { ...hooks }),
+          (param, i) => execute(param, args[i], metas[i], { ...hooks }),
         ),
       ),
   )
@@ -146,13 +170,14 @@ const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) => 
     (p, [stageId, [...params], globalTransform]) => p
       .then(
         ([[...dataFromLastStage], [...metasFromLastStage]]) => {
-          const [nextParams, nextArgs, nextTransform] = propagate(params, dataFromLastStage);
+          const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(params, dataFromLastStage, metasFromLastStage);
           return executeStage(
             id,
             stageId,
             nextTransform,
             [...nextParams],
             [...nextArgs],
+            [...nextMetas],
             { ...hooks },
           )
             .then(
