@@ -126,8 +126,13 @@ const executeStage = (rootId, stageId, nextTransform, [...params], [...args], { 
         params.map(
           (param, i) => execute(param, args[i], { ...hooks }),
         ),
-      )
-      .then(nextTransform),
+      ),
+  )
+  .then(
+    data => [
+      nextTransform(data),
+      'some meta in execute stage',
+    ],
   );
 
 const executeParams = (id, { ...hooks }, [...params], [...args]) => params
@@ -144,7 +149,13 @@ const executeParams = (id, { ...hooks }, [...params], [...args]) => params
             [...nextArgs],
             { ...hooks },
           )
-            .then(globalTransform);
+            .then(
+              ([data, metaOut]) => [
+                globalTransform(data),
+                'some meta from execute params over '+metaOut,
+              ],
+            )
+            .then(([data]) => data);
         },
       ),
     Promise.resolve([...args]),
