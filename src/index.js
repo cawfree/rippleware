@@ -9,7 +9,8 @@ import createHooks from "./createHooks";
 export const isRippleware = e =>
   typeCheck("Function", e) &&
   typeCheck("Function", e.use) &&
-  typeCheck("Function", e.sep);
+  typeCheck("Function", e.sep) &&
+  typeCheck("Function", e.pre);
 
 const secret = nanoid();
 
@@ -243,6 +244,7 @@ const compose = (...args) => {
   const r = function(...args) {
     r.use = throwOnInvokeThunk("use");
     r.sep = throwOnInvokeThunk("sep");
+    r.pre = throwOnInvokeThunk("pre");
 
     if (isInternalConstructor(...args)) {
       const [secret, opts, ...extras] = args;
@@ -256,7 +258,7 @@ const compose = (...args) => {
     }
 
     return (
-      exec({ global, meta: params.map(() => undefined) }, ...args)
+      exec({ global, meta: [] }, ...args)
         // XXX: Drop meta information for top-level callers.
         .then(transforms.first())
     );
@@ -269,6 +271,14 @@ const compose = (...args) => {
   r.sep = (...args) => {
     params.push([nanoid(), args, transforms.sep()]);
     return r;
+  };
+  r.pre = (...args) => {
+    if (typeCheck('(Function)', args)) {
+      const [pre] = args;
+      params.push([nanoid(), pre, transforms.identity()]);
+      return r;
+    }
+    throw new Error("Pre-execution stages must specify a single function.");
   };
 
   return r;

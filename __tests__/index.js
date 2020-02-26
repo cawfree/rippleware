@@ -346,3 +346,9 @@ it("should be possible to define skipped channels of computation", async () => {
 
   expect(await app(1, 2)).toEqual([3, 3]);
 });
+
+it("should be possible to dynamically generate parameters based upon pre-evaluation of available data", async () => {
+  expect(() => compose().pre(/$.*/)).toThrow();
+  expect(() => compose().pre(() => null, () => null)).toThrow();
+  expect(compose().pre(() => null)).toBeTruthy();
+});
