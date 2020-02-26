@@ -141,11 +141,11 @@ const executeStage = (rootId, stageId, nextTransform, [...params], [...args], { 
     ],
   );
 
-const executeParams = (id, { ...hooks }, [...params], [...args]) => params
+const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) => params
   .reduce(
     (p, [stageId, [...params], globalTransform]) => p
       .then(
-        ([...dataFromLastStage]) => {
+        ([[...dataFromLastStage], [...metasFromLastStage]]) => {
           const [nextParams, nextArgs, nextTransform] = propagate(params, dataFromLastStage);
           return executeStage(
             id,
@@ -160,13 +160,11 @@ const executeParams = (id, { ...hooks }, [...params], [...args]) => params
                 globalTransform(data),
                 globalTransform(metaOut),
               ],
-            )
-            .then(([data]) => data);
+            );
         },
       ),
-    Promise.resolve([...args]),
-  )
-  .then(data => [data, 'some meta information']);
+    Promise.resolve([[...args], [...metas]]),
+  );
 
 const throwOnInvokeThunk = name => () => {
   throw new Error(
@@ -206,6 +204,7 @@ const compose = (...args) => {
       extraHooks,
       params,
       args,
+      params.map(() => undefined),
     );
   };
 
