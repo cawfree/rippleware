@@ -313,14 +313,32 @@ it("should allow the propagation of the useMeta hook", async () => {
     .use((_, { useMeta }) => useMeta(5))
     .use(
       compose()
+        .use((_, { useMeta }) => useMeta()),
+    );
+
+  expect(await app2()).toEqual([5]);
+
+  const app3 = compose()
+    .use((_, { useMeta }) => useMeta(5))
+    .use(
+      compose()
         .use(
-          (_, { useMeta }) => {
-            console.log(useMeta());
-          },
+          (_, { useMeta }) => useMeta(),
+          (_, { useMeta }) => useMeta(),
+          (_, { useMeta }) => useMeta(),
         ),
     );
 
-  await app2();
+  expect(await app3()).toEqual([5, undefined, undefined]);
+
+  const app4 = compose()
+    .use((_, { useMeta }) => useMeta(5))
+    .use(() => null)
+    .use(() => null)
+    .use(() => null)
+    .use((_, { useMeta }) => useMeta());
+
+  expect(await app4()).toEqual([5]);
 });
 
 

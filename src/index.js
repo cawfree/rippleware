@@ -107,9 +107,9 @@ const execute = (param, arg, meta, { ...hooks }) => {
       () => {
         if (isRippleware(param)) {
           const { useGlobal } = hooks;
-          console.log('nested meta is',meta);
           const opts = Object.freeze({
             useGlobal,
+            meta: [meta],
           });
           return param(secret, opts, ...arg);
         } else if (Array.isArray(param)) {
@@ -216,7 +216,7 @@ const compose = (...args) => {
   const [globalState] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  const exec = ({ global }, ...args) => {
+  const exec = ({ global, meta }, ...args) => {
     resetHooks();
 
     const extraHooks = {
@@ -229,7 +229,7 @@ const compose = (...args) => {
       extraHooks,
       params,
       args,
-      params.map(() => undefined),
+      meta,
     );
   };
 
@@ -243,13 +243,13 @@ const compose = (...args) => {
     if (isInternalConstructor(...args)) {
       const [secret, opts, ...extras] = args;
       if (typeCheck("{useGlobal:Function,...}", opts)) {
-        const { useGlobal } = opts;
-        return exec({ global: global || useGlobal() }, ...extras);
+        const { useGlobal, meta } = opts;
+        return exec({ global: global || useGlobal(), meta }, ...extras);
       }
       throw new Error(`Encountered an internal constructor which specified an incorrect options argument.`);
     }
     
-    return exec({ global }, ...args)
+    return exec({ global, meta: params.map(() => undefined) }, ...args)
       // XXX: Drop meta information for top-level callers.
       .then(transforms.first());
   };
