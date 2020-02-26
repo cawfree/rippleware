@@ -3,7 +3,7 @@ import "@babel/polyfill";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { isRippleware, justOnce, print, noop } from "../src";
+import compose, { isRippleware, justOnce, noop } from "../src";
 
 const addOne = () => input => input + 1;
 
@@ -339,6 +339,19 @@ it("should allow the propagation of the useMeta hook", async () => {
     .use((_, { useMeta }) => useMeta());
 
   expect(await app4()).toEqual([5]);
+
+  const app5 = compose()
+    .use(
+      (_, { useMeta }) => useMeta(100),
+      compose()
+        .use((_, { useMeta }) => useMeta(10)),
+    )
+    .sep(
+      (_, { useMeta }) => useMeta(),
+      (_, { useMeta }) => useMeta(),
+    );
+
+  expect(await app5()).toEqual([100, 10]);
 });
 
 it("should be possible to determine the topology of execution using useTopology", async () => {
@@ -346,311 +359,52 @@ it("should be possible to determine the topology of execution using useTopology"
     .use((_, { useTopology }) => useTopology());
 
   expect(await app()).toEqual([[0, 1]]);
+
+  const app2 = compose()
+    .use(
+      compose()
+        .use(() => null)
+        .use(() => null)
+        .use((_, { useTopology }) => useTopology()),
+    );
+
+  expect(await app2()).toEqual([[2, 3]]);
 });
 
+it("should be possible to execute some middleware only once", async () => {
+  const app = compose()
+    .use(justOnce(i => !i));
 
-//
-//it("should be possible to execute some middleware only once", async () => {
-//  const app = compose().use(justOnce("*", input => !input));
-//
-//  const result = await app(true);
-//  const result2 = await app(true);
-//  const result3 = await app(true);
-//
-//  expect(result).toEqual(false);
-//  expect(result2).toEqual(true);
-//  expect(result3).toEqual(true);
-//});
-//
+  expect(await app(true)).toEqual([false]);
+  expect(await app(true)).toEqual([true]);
+  expect(await app(false)).toEqual([false]);
 
+  const app2 = compose()
+    .use(
+      compose()
+        .use(justOnce(i => !i)),
+    );
 
+  expect(await app2(true)).toEqual([false]);
+  expect(await app2(true)).toEqual([true]);
+  expect(await app2(false)).toEqual([false]);
 
-//
-//it("should be possible to declare and consume meta to permit the propagation of hidden properties", async () => {
-//  const numericHandler = () => handle =>
-//    handle("Number", (input, { useMeta }) => {
-//      useMeta("numeric");
-//      return input + 1;
-//    });
-//  const booleanHandler = () => handle =>
-//    handle("Boolean", (input, { useMeta }) => {
-//      useMeta("boolean");
-//      return !input;
-//    });
-//
-//  const metaHandler = () => handle =>
-//    handle("*", (input, { useMeta }) => useMeta());
-//
-//  const app = compose()
-//    .use(numericHandler())
-//    .use(metaHandler());
-//
-//  expect(await app(3)).toEqual("numeric");
-//
-//  const app2 = compose()
-//    .use(booleanHandler())
-//    .use(metaHandler());
-//  expect(await app2(true)).toEqual("boolean");
-//
-//  const app3 = compose()
-//    .use(numericHandler(), booleanHandler())
-//    .use(metaHandler());
-//
-//  expect(await app3(3, true)).toEqual(["numeric", "boolean"]);
-//
-//  const app4 = compose().use("*", (_, { useMeta }) => useMeta(1, 1));
-//
-//  const app5 = compose().use("*", (_, { useMeta }) => useMeta());
-//
-//  expect(await app5("This should be undefined.")).toEqual(undefined);
-//
-//  const app6 = compose()
-//    .use("*", (_, { useMeta }) => useMeta({ a: 2 }))
-//    .use("*", (_, { useMeta }) => (useMeta().a = 4));
-//
-//  expect(app6()).rejects.toBeTruthy();
-//});
-//
-//it("should be able to intuitively nest middleware layers", async () => {
-//  const app = compose()
-//    .use("*", b => !b)
-//    .use(compose().use("*", b => !b));
-//
-//  expect(await app()).toEqual(false);
-//  expect(await app(true)).toEqual(true);
-//  expect(await app(false)).toEqual(false);
-//
-//  const app2 = compose(buildStore)
-//    .use("*", (input, { useGlobal }) => {
-//      const { dispatch } = useGlobal();
-//      dispatch(increment());
-//      return !input;
-//    })
-//    .use(
-//      compose().use("*", (input, { useGlobal }) => {
-//        return useGlobal()
-//          .getState()
-//          .get("cnt");
-//      })
-//    );
-//
-//  expect(await app2()).toEqual(1);
-//
-//  const app3 = compose()
-//    .use("*", (input, { useMeta }) => {
-//      useMeta({ hello: "world" });
-//      return !input;
-//    })
-//    .use(
-//      compose().use("*", (input, { useMeta }) => {
-//        return useMeta();
-//      })
-//    );
-//
-//  expect(await app3()).toEqual({ hello: "world" });
-//
-//  const subApp = compose().use("*", input => !input);
-//
-//  const app4 = compose().use(subApp, subApp);
-//
-//  expect(await app4(true, false)).toEqual([false, true]);
-//
-//  const applyMeta1 = () => handle =>
-//    handle("*", (input, { useMeta }) => {
-//      useMeta(1);
-//      return !input;
-//    });
-//
-//  const applyMeta2 = () => handle =>
-//    handle("*", (input, { useMeta }) => {
-//      useMeta(2);
-//      return !input;
-//    });
-//
-//  // TODO: Meta should be segmented!
-//  const app5 = compose()
-//    .use(applyMeta1(), applyMeta2())
-//    .use(
-//      compose().use("*", (input, { useMeta }) => {
-//        return useMeta();
-//      }),
-//      compose().use("*", (input, { useMeta }) => {
-//        return useMeta();
-//      })
-//    );
-//
-//  const app6 = compose(buildStore).use(
-//    compose(() => ({ hello: "world" })).use("*", (input, { useGlobal }) =>
-//      useGlobal()
-//    )
-//  );
-//
-//  expect(await app6()).toEqual({ hello: "world" });
-//});
-//
-//it("should be possible to determine the topology of execution", async () => {
-//  const app = compose()
-//    .use("*", b => !b)
-//    .use("*", b => !b)
-//    .use("*", (input, { useTopology }) => useTopology());
-//
-//  expect(await app()).toEqual([2, 3]);
-//
-//  const app2 = compose()
-//    .use("*", b => !b)
-//    .use(compose().use("*", (_, { useTopology }) => useTopology()))
-//    .use("*", b => b);
-//
-//  expect(await app2()).toEqual([0, 1]);
-//});
-//
-//it("should be possible for nested meta to propagate back into the parent execution context", async () => {
-//  const metaApp = () =>
-//    compose().use("Boolean", (input, { useMeta }) => {
-//      useMeta("hello");
-//      return !input;
-//    });
-//
-//  const app = compose()
-//    .use(metaApp(), metaApp(), metaApp())
-//    .use("*", (_, { useMeta }) => useMeta());
-//
-//  expect(await app(true, false, true)).toEqual(["hello", "hello", "hello"]);
-//  expect(await app(false, true, false)).toEqual(["hello", "hello", "hello"]);
-//});
-//
-//it("should be possible to print debug information about a given state", async () => {
-//  const app = compose()
-//    .use("Boolean", (input, { useMeta }) => {
-//      useMeta("Some meta information.");
-//      return [input, !input];
-//    })
-//    .use(print(), print());
-//
-//  expect(await app(false)).toEqual([false, true]);
-//});
-//
-//it("should permit noop operations", async () => {
-//  const app = compose().use(handle => handle("Number", i => i + 1), noop());
-//
-//  expect(await app(1, 1)).toEqual([2, 1]);
-//});
-//
-//it("should permit shorthand matcher declarations", async () => {
-//  const app = compose().use(h => h(b => !b));
-//
-//  expect(await app(true)).toEqual(false);
-//});
-//
-//it("should permit the propagation of meta after calls to print() and justOnce()", async () => {
-//  const app = compose()
-//    .use(h =>
-//      h((input, { useMeta }) => {
-//        useMeta(input);
-//        return null;
-//      })
-//    )
-//    .use(justOnce(justOnce(justOnce(print()))))
-//    .use(print())
-//    .use(noop())
-//    .use(noop())
-//    .use(justOnce(justOnce(noop())))
-//    .use(h => h((input, { useMeta }) => useMeta()));
-//
-//  expect(await app(3)).toBe(3);
-//  expect(await app(4)).toBe(4);
-//});
-//
-//it("should permit extended parameter declarations", async () => {
-//  const app = compose()
-//    .use(noop(), noop());
-//  expect(await app([1, 2])).toEqual([[1, 2], undefined]);
-//});
-//
-//
-//it("should reconcile difficult configurations like this", async () => {
-//  const app = compose()
-//    .use(
-//      noop(),
-//      noop(),
-//      noop(),
-//    );
-//
-//  expect(await app(0,0,0)).toEqual([0,0,0]);
-//  expect(await app([0],[0],[0])).toEqual([[0],[0],[0]]);
-//  expect(await app([0, 0],0,[0])).toEqual([[0, 0],0,[0]]);
-//  expect(await app([1, 0], 1)).toEqual([ [ 1, 0 ], 1, undefined ]);
-//
-//  const app2 = compose()
-//    .use(
-//      compose()
-//        .use(noop(), noop(), noop()),
-//    );
-//
-//  expect(await app2(1,2,3)).toEqual([1,2,3]);
-//});
+  const app3 = compose()
+    .use((_, { useMeta }) => useMeta(4))
+    .use(
+      compose()
+        .use(justOnce(() => null)),
+    )
+    .use((_, { useMeta }) => useMeta());
 
-//it("should be capable of executing the example code", async () => {
-//  const app = compose().use(handle => handle("*", () => "Hello, world!"));
-//
-//  expect(await app()).toEqual("Hello, world!");
-//
-//  const app2 = compose().use(handle => {
-//    handle("String", () => "You passed a string!");
-//    handle("*", () => "You didn't pass a string!");
-//  });
-//
-//  expect(await app2("This is a string.")).toEqual("You passed a string!");
-//  expect(await app2({ life: 42 })).toEqual("You didn't pass a string!");
-//
-//  const addOneToANumber = () => handle => handle("Number", n => n + 1);
-//
-//  const app3 = compose().use([addOneToANumber()]);
-//
-//  expect(await app3([2])).toEqual(3);
-//
-//  const app4 = compose().use(handle =>
-//    handle("*", (next, { useState }) => {
-//      const [r] = useState(next);
-//      return r;
-//    })
-//  );
-//
-//  expect(await app4("The only value this will ever return.")).toEqual(
-//    "The only value this will ever return."
-//  );
-//
-//  expect(await app4("Some other value")).toEqual(
-//    "The only value this will ever return."
-//  );
-//
-//  const app5 = compose().use(/$.*.t/);
-//
-//  expect(await app5([{ t: "hi" }, { t: "bye" }])).toEqual(["hi", "bye"]);
-//
-//  const app6 = compose().use(/$.*.t/, /$.*.s/);
-//
-//  expect(await app6([{ t: "hi" }], [{ s: 0 }])).toEqual([["hi"], [0]]);
-//
-//  const app7 = compose().use([/$.*.t/, /$.*.s/]);
-//
-//  expect(
-//    await app7([
-//      { t: "hi", s: 0 },
-//      { t: "bye", s: 1 }
-//    ])
-//  ).toEqual([
-//    ["hi", "bye"],
-//    [0, 1]
-//  ]);
-//
-//  const app8 = compose().use(somethingThatAddsOneToAScalar(), noop());
-//
-//  expect(await app8(0, 0)).toEqual([1, 0]);
-//
-//  const app9 = compose()
-//    .use([somethingThatAddsOneToAScalar(), noop()]);
-//
-//  expect(await app9([0, 1])).toEqual([1, 1]);
-//
-//});
+  expect(await app3(null)).toEqual([4]);
+});
+
+it("should be possible to define skipped channels of computation", async () => {
+  const app = compose()
+    .use(noop(), noop())
+    .use(noop(), i => i + 1)
+    .use(i => i + 2, noop());
+  
+  expect(await app(1, 2)).toEqual([3, 3]);
+});

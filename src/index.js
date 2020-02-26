@@ -271,4 +271,17 @@ const compose = (...args) => {
   return r;
 };
 
+export const justOnce = (...args) => (input, { useState, useGlobal }) => {
+  const [app] = useState(() => compose().use(...args));
+  const [didExecute, setDidExecute] = useState(false);
+  if (!didExecute) {
+    setDidExecute(true);
+    return app(input)
+      .then(transforms.first());
+  }
+  return Promise.resolve(input);
+};
+
+export const noop = () => input => input;
+
 export default compose;
