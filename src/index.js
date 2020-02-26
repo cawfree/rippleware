@@ -101,17 +101,23 @@ const execute = (param, arg, { ...hooks }) => {
           const opts = Object.freeze({
             useGlobal,
           });
-          return param(secret, opts, ...arg)
-            // TODO: How to handle the meta?
-            .then(([data, someMetaOut]) => {
-              return data;
-            });
+          return param(secret, opts, ...arg);
         } else if (Array.isArray(param)) {
-          return Promise.all(param.map((p, i) => execute(p, arg[i], { ...hooks })));
+          return Promise.all(param.map((p, i) => execute(p, arg[i], { ...hooks })))
+            .then(results => [
+              results.map(([data]) => data),
+              results.map(([_, meta]) => meta),
+            ]);
         } else if (typeCheck('RegExp{source:String}', param)) {
-          return jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
+          return Promise.resolve(
+            [
+              jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, "")),
+              'some regex meta',
+            ],
+          );
         } else if (typeCheck('Function', param)) {
-          return param(arg, { ...hooks });
+          return Promise.resolve(param(arg, { ...hooks }))
+            .then(data => [data, 'some function meta']);
         }
         throw new Error(`Encountered unknown execution format, ${param}.`);
       },
@@ -129,9 +135,9 @@ const executeStage = (rootId, stageId, nextTransform, [...params], [...args], { 
       ),
   )
   .then(
-    data => [
-      nextTransform(data),
-      'some meta in execute stage',
+    ([...results]) => [
+      nextTransform(results.map(([data]) => data)),
+      nextTransform(results.map(([_, meta]) => meta)),
     ],
   );
 
@@ -152,7 +158,7 @@ const executeParams = (id, { ...hooks }, [...params], [...args]) => params
             .then(
               ([data, metaOut]) => [
                 globalTransform(data),
-                'some meta from execute params over '+metaOut,
+                globalTransform(metaOut),
               ],
             )
             .then(([data]) => data);
