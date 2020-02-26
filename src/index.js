@@ -12,7 +12,10 @@ export const isRippleware = e =>
   typeCheck("Function", e.sep) &&
   typeCheck("Function", e.pre);
 
-const secret = nanoid();
+const secrets = Object.freeze({
+  internal: nanoid(),
+  pre: nanoid(),
+});
 
 const isSingleRippleware = ([r, ...extras]) =>
   extras.length === 0 && isRippleware(r);
@@ -116,7 +119,7 @@ const execute = (param, arg, meta, { ...hooks }) => {
         useGlobal,
         meta: [meta]
       });
-      return param(secret, opts, ...arg);
+      return param(secrets.internal, opts, ...arg);
     } else if (Array.isArray(param)) {
       return Promise.all(
         param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks }))
@@ -218,8 +221,23 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
+const evaluateParams = (params, { ...hooks }) => params
+  .map(
+    ([id, args, transform, secret]) => {
+      if (typeCheck('String', secret) && secret === secrets.pre) {
+        return [
+          id,
+          args.map(fn => fn({ ...hooks })),
+          transform,
+          secret,
+        ];
+      }
+      return [id, args, transform, secret];
+    },
+  );
+
 const isInternalConstructor = (maybeSecret, ...args) =>
-  typeCheck("String", maybeSecret) && maybeSecret === secret;
+  typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
 
 const compose = (...args) => {
   const params = [];
@@ -236,7 +254,13 @@ const compose = (...args) => {
       useGlobal: () => global
     };
 
-    return executeParams(id, extraHooks, params, args, meta);
+    const { useState } = extraHooks;
+
+    const [evaluatedParams] = useState(
+      () => evaluateParams(params, extraHooks),
+    );
+
+    return executeParams(id, extraHooks, evaluatedParams, args, meta);
   };
 
   const global = globalState();
@@ -265,22 +289,20 @@ const compose = (...args) => {
   };
 
   r.use = (...args) => {
-    params.push([nanoid(), args, transforms.identity()]);
+    params.push([nanoid(), args, transforms.identity(), null]);
     return r;
   };
   r.sep = (...args) => {
-    params.push([nanoid(), args, transforms.sep()]);
+    params.push([nanoid(), args, transforms.sep(), null]);
     return r;
   };
   r.pre = (...args) => {
-    if (typeCheck('(Function)', args)) {
-      const [pre] = args;
-      params.push([nanoid(), pre, transforms.identity()]);
+    if (typeCheck('[Function]', args)) {
+      params.push([nanoid(), args, transforms.identity(), secrets.pre]);
       return r;
     }
     throw new Error("Pre-execution stages must specify a single function.");
   };
-
   return r;
 };
 

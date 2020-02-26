@@ -349,6 +349,63 @@ it("should be possible to define skipped channels of computation", async () => {
 
 it("should be possible to dynamically generate parameters based upon pre-evaluation of available data", async () => {
   expect(() => compose().pre(/$.*/)).toThrow();
-  expect(() => compose().pre(() => null, () => null)).toThrow();
   expect(compose().pre(() => null)).toBeTruthy();
+
+  const app = compose(buildStore)
+    .pre(
+      ({ useGlobal }) => {
+        const { getState } = useGlobal();
+        const cnt = getState().get('cnt');
+        return () => cnt;
+      },
+      ({ useGlobal }) => {
+        const { getState } = useGlobal();
+        const cnt = getState().get('cnt');
+        return () => cnt;
+      }
+    );
+
+  expect(await app()).toEqual([0, 0]);
+
+  const app2 = compose(buildStore)
+    .use((_, { useGlobal }) => useGlobal().getState().get('cnt'))
+    .pre(
+      ({ useGlobal }) => {
+        const { dispatch } = useGlobal();
+        dispatch(increment());
+        return i => i;
+      },
+    );
+
+  expect(await app2()).toEqual([1]);
+  expect(await app2()).toEqual([1]);
+
+  const app3 = compose()
+    .pre(
+      () => [
+        ['Number', () => 'A number!'],
+        ['Object', () => 'An object!'],
+      ],
+      () => [
+        ['Number', () => 'A number!'],
+        ['Object', () => 'An object!'],
+      ],
+    );
+
+  expect(await app3(0, {})).toEqual(['A number!', 'An object!']);
+  expect(await app3({}, 0)).toEqual(['An object!', 'A number!']);
+
+  const app4 = compose()
+    .pre(
+      () => [
+        i => i,
+        i => i,
+      ],
+      () => [
+        i => i,
+        i => i,
+      ],
+    );
+
+  expect(await app4(5)).toEqual([[5, 5], [undefined, undefined]]);
 });
