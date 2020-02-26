@@ -1,268 +1,289 @@
 import jsonpath from "jsonpath";
 import deepEqual from "deep-equal";
 import klona from "klona";
+import nanoid from "nanoid";
 import { typeCheck } from "type-check";
 
-const PATTERN_HANDLER_ARRAY = "[(String|Function,Function)]";
+import createHooks from "./createHooks";
 
-const regExpToPath = e => e.toString().replace(/^\/|\/$/g, "");
+export const isRippleware = e =>
+  typeCheck("Function", e) &&
+  typeCheck("Function", e.use) &&
+  typeCheck("Function", e.sep);
 
-const maybeScalar = input =>
-  input.length === 0 ? undefined : input.length === 1 ? input[0] : input;
+const secret = nanoid();
 
-const executeNested = async (sub, input, { useMeta, useGlobal }) => {
-  sub.globalState =
-    sub.globalState === undefined ? useGlobal() : sub.globalState;
-  sub.inputMeta = useMeta();
-  const result = await sub(input);
-  useMeta(sub.outputMeta);
-  return result;
+const isSingleRippleware = ([r, ...extras]) =>
+  extras.length === 0 && isRippleware(r);
+
+const transforms = Object.freeze({
+  identity: () => e => e,
+  first: () => ([e]) => e,
+  sep: () => ([...e]) => [].concat(...e)
+});
+
+const isNestedArray = e => e.reduce((r, e) => r || Array.isArray(e), false);
+
+const isMatcherDeclaration = e => typeCheck("[(Function|String,Function)]", e);
+
+const match = (params, arg, meta) => [
+  (e, ...extras) => {
+    for (let i = 0; i < params.length; i += 1) {
+      const [shouldMatch, exec] = params[i];
+      if (typeCheck("Function", shouldMatch) && shouldMatch(arg)) {
+        return exec(arg, ...extras);
+      } else if (
+        typeCheck("String", shouldMatch) &&
+        typeCheck(shouldMatch, arg)
+      ) {
+        return exec(arg, ...extras);
+      }
+    }
+    throw new Error(`Unable to find a valid matcher for ${arg}.`);
+  },
+  arg,
+  meta
+];
+
+const shouldIndex = (param, arg, meta) => {
+  if (Array.isArray(param)) {
+    if (isNestedArray(param)) {
+      if (isMatcherDeclaration(param)) {
+        return match(param, arg, meta);
+      }
+      throw new Error(
+        "Arrays of middleware must only be of a single-dimension."
+      );
+    }
+    const { length } = param;
+    if (length === 1) {
+      console.warn(
+        "⚠️",
+        "Encountered a single array of middleware. This is unoptimized; you can just drop the array notation altogether.",
+        "(",
+        param,
+        ")"
+      );
+      const [p] = param;
+      return shouldIndex(p, arg, meta);
+    }
+    return [param, param.map(() => arg), param.map(() => meta)];
+  }
+  return [param, arg, meta];
 };
 
-const recurseUse = (e, globalState) => {
-  const handlers = [];
-  const handle = (...args) => {
-    if (
-      typeCheck("(String, Function)", args) ||
-      typeCheck("(Function, Function)", args)
-    ) {
-      const [matches, handler] = args;
-      return handlers.push([matches, handler]) && undefined;
-    } else if (typeCheck("(Function)", args)) {
-      const [handler] = args;
-      return handlers.push(["*", handler]) && undefined;
-    }
-    throw new Error(`Invalid call to handle().`);
-  };
-  if (typeCheck("Array", e)) {
-    return e.reduce((arr, f) => [...arr, recurseUse(f, globalState)], []);
-  } else if (isRippleware(e)) {
-    const sub = klona(e);
-    handle((input, hooks) => executeNested(sub, input, hooks));
-  } else if (typeCheck("Function", e)) {
-    e(handle, globalState);
-  } else if (typeCheck("RegExp{source:String}", e)) {
-    handle("*", input => jsonpath.query(input, regExpToPath(e)));
+const ensureIndexed = ([...params], [...args], [...metas]) => {
+  const nextParams = [];
+  const nextArgs = [];
+  const nextMetas = [];
+  const nextTransforms = [];
+  for (let i = 0; i < params.length; i += 1) {
+    const param = params[i];
+    const arg = args[i];
+    const meta = metas[i];
+
+    const [nextParam, nextArg, nextMeta] = shouldIndex(param, arg, meta);
+
+    nextParams.push(nextParam);
+    nextArgs.push(isRippleware(param) ? [nextArg] : nextArg);
+    nextMetas.push(isRippleware(param) ? [nextMeta] : nextMeta);
   }
-  if (handlers.length === 0) {
-    throw new Error(
-      "A call to use() must define a minimum of a single handler."
-    );
-  }
-  return handlers;
+  return [nextParams, nextArgs, nextMetas, transforms.identity()];
 };
 
-const simplify = args => {
-  if (typeCheck("(String, Function))|((Function, Function)", args)) {
-    const [e, fn] = args;
-    return [handle => handle(e, fn)];
+const propagate = ([...params], [...args], [...metas]) => {
+  if (isSingleRippleware(params)) {
+    const [r] = params;
+    const [m] = metas;
+    return [[r], [args], [m], transforms.first()];
+  } else if (params.length === args.length) {
+    return ensureIndexed(params, args, metas);
+  } else if (params.length > args.length) {
+    const p = [...Array(params.length - args.length)];
+    return ensureIndexed(params, [...args, ...p], [...metas, ...p]);
   }
-  return args.map(arg => {
-    if (typeCheck("RegExp{source:String}", arg)) {
-      return handle =>
-        handle("*", input => jsonpath.query(input, regExpToPath(arg)));
-    } else if (typeCheck("[RegExp{source:String}]", arg)) {
-      return handle =>
-        handle("*", input =>
-          arg.map(e => jsonpath.query(input, regExpToPath(e)))
-        );
-    } else if (typeCheck("[[RegExp{source:String}]]", arg)) {
-      return handle =>
-        handle("*", input =>
-          arg.map(e => e.map(f => jsonpath.query(input, regExpToPath(f))))
-        );
+  throw new Error(
+    `There is no viable way to propagate between ${params} and ${args}.`
+  );
+};
+
+const execute = (param, arg, meta, { ...hooks }) => {
+  return Promise.resolve().then(() => {
+    if (isRippleware(param)) {
+      const { useGlobal } = hooks;
+      const opts = Object.freeze({
+        useGlobal,
+        meta: [meta]
+      });
+      return param(secret, opts, ...arg);
+    } else if (Array.isArray(param)) {
+      return Promise.all(
+        param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks }))
+      ).then(results => [
+        results.map(([data]) => data),
+        results.map(([_, meta]) => meta)
+      ]);
+    } else if (typeCheck("RegExp{source:String}", param)) {
+      return Promise.resolve([
+        jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, "")),
+        meta
+      ]);
+    } else if (typeCheck("Function", param)) {
+      let metaOut = meta;
+      const extraHooks = {
+        ...hooks,
+        useMeta: (...args) => {
+          if (args.length === 0) {
+            return meta;
+          } else if (args.length === 1) {
+            const [nextMeta] = args;
+            metaOut = nextMeta;
+          } else {
+            metaOut = args;
+          }
+        }
+      };
+      return Promise.resolve(param(arg, { ...extraHooks })).then(data => [
+        data,
+        metaOut
+      ]);
     }
-    return arg;
+    throw new Error(`Encountered unknown execution format, ${param}.`);
   });
 };
 
-const findHandlerByMatches = (data, [...handlers]) => {
-  for (let i = 0; i < handlers.length; i += 1) {
-    const current = handlers[i];
-    const [matches] = current;
-    const isStringMatch =
-      typeCheck("String", matches) && typeCheck(matches, data);
-    const isFunctionMatch = typeCheck("Function", matches) && matches(data);
-    if (isStringMatch || isFunctionMatch) {
-      return current;
-    }
-  }
-  return null;
-};
+const executeStage = (
+  rootId,
+  stageId,
+  nextTransform,
+  [...params],
+  [...args],
+  [...metas],
+  { ...hooks }
+) =>
+  Promise.resolve()
+    .then(() =>
+      Promise.all(
+        params.map((param, i) =>
+          execute(param, args[i], metas[i], { ...hooks })
+        )
+      )
+    )
+    .then(([...results]) => [
+      nextTransform(results.map(([data]) => data)),
+      nextTransform(results.map(([_, meta]) => meta))
+    ]);
 
-const executeHandler = ([matches, handler], data, hooks, metaIn) => {
-  let meta = undefined;
-  const useMeta = (...args) => {
-    if (args.length === 0) {
-      return metaIn;
-    }
-    const [arg] = args;
-    meta = !!arg && typeof arg == "object" ? Object.freeze(arg) : arg;
-    return undefined;
-  };
-  return Promise.resolve(handler(data, { ...hooks, useMeta })).then(result => [
-    result,
-    meta
-  ]);
-};
-
-const collectResults = (stage, e) => [
-  maybeScalar(e.map(([result]) => result)),
-  maybeScalar(e.map(([_, meta]) => meta))
-];
-
-const executeEvaluated = (stage, data, hooks, meta) =>
-  Promise.all(
-    stage.map((s, i) => {
-      if (typeCheck(PATTERN_HANDLER_ARRAY, s)) {
-        const datum = data[i];
-        const handler = findHandlerByMatches(datum, s);
-        if (handler) {
-          return executeHandler(handler, datum, hooks, meta);
-        }
-        return Promise.reject(
-          new Error(`Could not find a valid matcher for ${datum}.`)
-        );
-      }
-      return recurseApply(data[i], meta, s, hooks);
-    })
-  ).then(e => collectResults(stage, e));
-
-const recurseApply = (data, meta, stage, hooks) => {
-  if (stage.length === 1 && typeCheck(PATTERN_HANDLER_ARRAY, stage[0])) {
-    return executeEvaluated([stage[0]], [data], hooks, meta);
-  } else if (data.length >= stage.length) {
-    return executeEvaluated(stage, data, hooks, meta);
-  }
-  return Promise.reject(new Error(`A handler for ${data} could not be found.`));
-};
-
-const executeMiddleware = (mwr, hooks, input, inputMeta) =>
-  mwr.reduce(
-    (p, stage, i, orig) =>
-      p.then(dataFromLastStage => {
+const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
+  params.reduce(
+    (p, [stageId, [...params], globalTransform], i, orig) =>
+      p.then(([[...dataFromLastStage], [...metasFromLastStage]]) => {
         const { length } = orig;
-        return recurseApply(...dataFromLastStage, stage, {
-          ...hooks,
-          useTopology: () => [i, length]
-        });
+        const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(
+          params,
+          dataFromLastStage,
+          metasFromLastStage
+        );
+        const topology = Object.freeze([i, length]);
+        return executeStage(
+          id,
+          stageId,
+          nextTransform,
+          [...nextParams],
+          [...nextArgs],
+          [...nextMetas],
+          {
+            ...hooks,
+            useTopology: () => topology
+          }
+        ).then(([data, metaOut]) => [
+          globalTransform(data),
+          globalTransform(metaOut)
+        ]);
       }),
-    Promise.resolve([input, inputMeta])
+    Promise.resolve([[...args], [...metas]])
   );
 
-const init = (...args) => {
-  if (args.length === 0) {
-    return [undefined];
-  } else if (typeCheck("[Function]", args) && args.length === 1) {
-    const [func] = args;
-    return [func()];
+const throwOnInvokeThunk = name => () => {
+  throw new Error(`It is not possible to call ${name}() after invoking.`);
+};
+
+const parseConstructor = (...args) => {
+  if (typeCheck("(Function)", args)) {
+    return args;
+  } else if (args.length === 0) {
+    return [() => undefined];
   }
-  throw new Error("Invalid options.");
+  throw new Error("Unsuitable arguments.");
 };
 
-const createHooks = () => {
-  let currentHook = 0;
-  // https://www.netlify.com/blog/2019/03/11/deep-dive-how-do-react-hooks-really-work/
-  const { ...hooks } = (function() {
-    const hooks = [];
-    return {
-      useEffect(callback, depArray) {
-        const hasNoDeps = !depArray;
-        const deps = hooks[currentHook];
-        if (hasNoDeps || !deepEqual(deps, depArray)) {
-          hooks[currentHook] = depArray;
-          callback();
-        }
-        currentHook++;
-      },
-      useState(initialValue) {
-        hooks[currentHook] =
-          hooks[currentHook] ||
-          (typeCheck("Function", initialValue) ? initialValue() : initialValue);
+const isInternalConstructor = (maybeSecret, ...args) =>
+  typeCheck("String", maybeSecret) && maybeSecret === secret;
 
-        const setStateHookIndex = currentHook;
-        const setState = newState => (hooks[setStateHookIndex] = newState);
+const compose = (...args) => {
+  const params = [];
+  const id = nanoid();
 
-        return [hooks[currentHook++], setState];
-      }
-    };
-  })();
-  const resetHooks = () => (currentHook = 0) && undefined;
-  return [hooks, resetHooks];
-};
-
-export const compose = (...args) => {
-  const mwr = [];
-
-  const [globalState] = init(...args);
+  const [globalState] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  function r(...input) {
+  const exec = ({ global, meta }, ...args) => {
     resetHooks();
 
-    r.use = () => {
-      throw new Error(
-        "It is not possible to make a call to use() after function execution."
-      );
+    const extraHooks = {
+      ...hooks,
+      useGlobal: () => global
     };
 
-    return executeMiddleware(
-      mwr.map(e => recurseUse(simplify(e), r.globalState)),
-      { ...hooks, useGlobal: () => r.globalState },
-      maybeScalar(input),
-      r.inputMeta
-    ).then(
-      ([result, outputMeta]) =>
-        ((r.outputMeta = outputMeta) && undefined) || result
-    );
-  }
-
-  r.use = (...args) => {
-    if (args.length === 0) {
-      throw new Error(
-        "A call to use() must specify at least a single handler."
-      );
-    }
-    mwr.push(args);
-    return r;
+    return executeParams(id, extraHooks, params, args, meta);
   };
 
-  // TODO: Is there any way to prevent access to unprivileged writers?
-  r.globalState = globalState;
-  r.inputMeta = undefined;
-  r.outputMeta = undefined;
+  const global = globalState();
+
+  const r = function(...args) {
+    r.use = throwOnInvokeThunk("use");
+    r.sep = throwOnInvokeThunk("sep");
+
+    if (isInternalConstructor(...args)) {
+      const [secret, opts, ...extras] = args;
+      if (typeCheck("{useGlobal:Function,...}", opts)) {
+        const { useGlobal, meta } = opts;
+        return exec({ global: global || useGlobal(), meta }, ...extras);
+      }
+      throw new Error(
+        `Encountered an internal constructor which specified an incorrect options argument.`
+      );
+    }
+
+    return (
+      exec({ global, meta: params.map(() => undefined) }, ...args)
+        // XXX: Drop meta information for top-level callers.
+        .then(transforms.first())
+    );
+  };
+
+  r.use = (...args) => {
+    params.push([nanoid(), args, transforms.identity()]);
+    return r;
+  };
+  r.sep = (...args) => {
+    params.push([nanoid(), args, transforms.sep()]);
+    return r;
+  };
 
   return r;
 };
 
-export const isRippleware = fn =>
-  typeCheck("Function", fn) &&
-  typeCheck("Function", fn.use) &&
-  fn.hasOwnProperty("globalState") &&
-  fn.hasOwnProperty("inputMeta") &&
-  fn.hasOwnProperty("outputMeta");
+export const justOnce = (...args) => (input, { useState, useGlobal }) => {
+  const [app] = useState(() => compose().use(...args));
+  const [didExecute, setDidExecute] = useState(false);
+  if (!didExecute) {
+    setDidExecute(true);
+    return app(input).then(transforms.first());
+  }
+  return Promise.resolve(input);
+};
 
-export const justOnce = (...args) => h =>
-  h((input, hooks) => {
-    const { useState, useGlobal, useMeta } = hooks;
-    const [app] = useState(() => compose(useGlobal).use(...args));
-    const [executed, setExecuted] = useState(false);
-    if (!executed) {
-      setExecuted(true);
-      return executeNested(app, input, hooks);
-    }
-    useMeta(useMeta());
-    return Promise.resolve(input);
-  });
-
-export const print = () => h =>
-  h((input, { useMeta, useTopology }) => {
-    const meta = useMeta();
-    console.log({ input, meta, topology: useTopology() });
-    return useMeta(meta) || input;
-  });
-
-export const noop = () => h =>
-  h((input, { useMeta }) => useMeta(useMeta()) || input);
+export const noop = () => input => input;
 
 export default compose;
