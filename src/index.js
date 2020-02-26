@@ -8,6 +8,8 @@ import createHooks from "./createHooks";
 
 export const isRippleware = e => typeCheck('Function', e) && typeCheck('Function', e.use) && typeCheck('Function', e.sep);
 
+const secret = nanoid();
+
 const isSingleRippleware = ([r, ...extras]) => (extras.length === 0) && isRippleware(r);
 
 const transforms = Object.freeze({
@@ -94,7 +96,11 @@ const execute = (param, arg, { ...hooks }) => Promise
   .then(
     () => {
       if (isRippleware(param)) {
-        return param(...arg);
+        const { useGlobal } = hooks;
+        const opts = Object.freeze({
+          useGlobal,
+        });
+        return param(secret, opts, ...arg);
       } else if (Array.isArray(param)) {
         return Promise.all(param.map((p, i) => execute(p, arg[i], { ...hooks })));
       } else if (typeCheck('RegExp{source:String}', param)) {
@@ -153,6 +159,8 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
+const isInternalConstructor = (maybeSecret, ...args) => typeCheck("String", maybeSecret) && maybeSecret === secret;
+
 const compose = (...args) => {
 
   const params = [];
@@ -161,13 +169,8 @@ const compose = (...args) => {
   const [globalState] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  const global = globalState();
-
-  const r = function(...args) {
+  const exec = ({ global }, ...args) => {
     resetHooks();
-
-    r.use = throwOnInvokeThunk("use");
-    r.sep = throwOnInvokeThunk("sep");
 
     const extraHooks = {
       ...hooks,
@@ -180,6 +183,25 @@ const compose = (...args) => {
       params,
       args,
     );
+  };
+
+  const global = globalState();
+
+  const r = function(...args) {
+
+    r.use = throwOnInvokeThunk("use");
+    r.sep = throwOnInvokeThunk("sep");
+
+    if (isInternalConstructor(...args)) {
+      const [secret, opts, ...extras] = args;
+      if (typeCheck("{useGlobal:Function,...}", opts)) {
+        const { useGlobal } = opts;
+        return exec({ global: global || useGlobal() }, ...extras);
+      }
+      throw new Error(`Encountered an internal constructor which specified an incorrect options argument.`);
+    }
+    
+    return exec({ global }, ...args);
   };
 
   r.use = (...args) => {

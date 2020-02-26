@@ -229,6 +229,77 @@ it("must support the instantiation and propagation of global state", async () =>
   expect(await app()).toEqual([1]);
   expect(await app()).toEqual([2]);
   expect(await app()).toEqual([3]);
+
+  const app2 = compose(buildStore)
+    .use(
+      compose()
+        .use(
+          (_, { useGlobal }) => {
+            const { dispatch } = useGlobal();
+            dispatch(increment());
+            return null;
+          },
+        ),
+    )
+    .use(
+      (_, { useGlobal }) => {
+        const { getState } = useGlobal();
+        const cnt = getState().get('cnt');
+        return cnt;
+      },
+    );
+
+  expect(await app2()).toEqual([1]);
+  expect(await app2()).toEqual([2]);
+  expect(await app2()).toEqual([3]);
+});
+
+it("must not override the global state of nested middleware if they have one defined", async () => {
+  const app = compose(buildStore)
+    .use(
+      compose(buildStore)
+        .use(
+          (_, { useGlobal }) => {
+            const { dispatch } = useGlobal();
+            dispatch(increment());
+            return null;
+          },
+        )
+        .use(
+          (_, { useGlobal }) => {
+            const { getState } = useGlobal();
+            const cnt = getState().get('cnt');
+            return cnt;
+          },
+        ),
+    );
+
+  expect(await app()).toEqual([1]);
+  expect(await app()).toEqual([2]);
+  expect(await app()).toEqual([3]);
+
+  const app2 = compose(buildStore)
+    .use(
+      compose(buildStore)
+        .use(
+          (_, { useGlobal }) => {
+            const { dispatch } = useGlobal();
+            dispatch(increment());
+            return null;
+          },
+        ),
+    )
+    .use(
+      (_, { useGlobal }) => {
+        const { getState } = useGlobal();
+        const cnt = getState().get('cnt');
+        return cnt;
+      },
+    );
+
+  expect(await app2()).toEqual([0]);
+  expect(await app2()).toEqual([0]);
+  expect(await app2()).toEqual([0]);
 });
 
 
