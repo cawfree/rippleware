@@ -167,10 +167,12 @@ const executeStage = (rootId, stageId, nextTransform, [...params], [...args], [.
 
 const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) => params
   .reduce(
-    (p, [stageId, [...params], globalTransform]) => p
+    (p, [stageId, [...params], globalTransform], i, orig) => p
       .then(
         ([[...dataFromLastStage], [...metasFromLastStage]]) => {
+          const { length } = orig;
           const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(params, dataFromLastStage, metasFromLastStage);
+          const topology = Object.freeze([i, length]);
           return executeStage(
             id,
             stageId,
@@ -178,7 +180,10 @@ const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) => 
             [...nextParams],
             [...nextArgs],
             [...nextMetas],
-            { ...hooks },
+            {
+              ...hooks,
+              useTopology: () => topology,
+            },
           )
             .then(
               ([data, metaOut]) => [

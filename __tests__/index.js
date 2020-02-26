@@ -341,6 +341,13 @@ it("should allow the propagation of the useMeta hook", async () => {
   expect(await app4()).toEqual([5]);
 });
 
+it("should be possible to determine the topology of execution using useTopology", async () => {
+  const app = compose()
+    .use((_, { useTopology }) => useTopology());
+
+  expect(await app()).toEqual([[0, 1]]);
+});
+
 
 //
 //it("should be possible to execute some middleware only once", async () => {
