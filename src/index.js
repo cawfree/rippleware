@@ -91,26 +91,32 @@ const propagate = ([...params], [...args]) => {
   throw new Error(`There is no viable way to propagate between ${params} and ${args}.`);
 };
 
-const execute = (param, arg, { ...hooks }) => Promise
-  .resolve()
-  .then(
-    () => {
-      if (isRippleware(param)) {
-        const { useGlobal } = hooks;
-        const opts = Object.freeze({
-          useGlobal,
-        });
-        return param(secret, opts, ...arg);
-      } else if (Array.isArray(param)) {
-        return Promise.all(param.map((p, i) => execute(p, arg[i], { ...hooks })));
-      } else if (typeCheck('RegExp{source:String}', param)) {
-        return jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
-      } else if (typeCheck('Function', param)) {
-        return param(arg, { ...hooks });
-      }
-      throw new Error(`Encountered unknown execution format, ${param}.`);
-    },
-  );
+const execute = (param, arg, { ...hooks }) => {
+  return Promise
+    .resolve()
+    .then(
+      () => {
+        if (isRippleware(param)) {
+          const { useGlobal } = hooks;
+          const opts = Object.freeze({
+            useGlobal,
+          });
+          return param(secret, opts, ...arg)
+            // TODO: How to handle the meta?
+            .then(([data, someMetaOut]) => {
+              return data;
+            });
+        } else if (Array.isArray(param)) {
+          return Promise.all(param.map((p, i) => execute(p, arg[i], { ...hooks })));
+        } else if (typeCheck('RegExp{source:String}', param)) {
+          return jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
+        } else if (typeCheck('Function', param)) {
+          return param(arg, { ...hooks });
+        }
+        throw new Error(`Encountered unknown execution format, ${param}.`);
+      },
+    );
+};
 
 const executeStage = (rootId, stageId, nextTransform, [...params], [...args], { ...hooks }) => Promise
   .resolve()
@@ -142,7 +148,8 @@ const executeParams = (id, { ...hooks }, [...params], [...args]) => params
         },
       ),
     Promise.resolve([...args]),
-  );
+  )
+  .then(data => [data, 'some meta information']);
 
 const throwOnInvokeThunk = name => () => {
   throw new Error(
@@ -201,7 +208,9 @@ const compose = (...args) => {
       throw new Error(`Encountered an internal constructor which specified an incorrect options argument.`);
     }
     
-    return exec({ global }, ...args);
+    return exec({ global }, ...args)
+      // XXX: Drop meta information for top-level callers.
+      .then(transforms.first());
   };
 
   r.use = (...args) => {
