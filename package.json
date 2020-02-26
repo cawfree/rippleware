@@ -1,6 +1,6 @@
 {
   "name": "rippleware",
-  "version": "0.2.0-alpha.0",
+  "version": "0.2.0-alpha.1",
   "description": "🚣 A middleware-inspired toolbox that promotes function extensibility.",
   "main": "dist",
   "repository": "https://github.com/cawfree/rippleware",
@@ -18,7 +18,7 @@
     "pattern"
   ],
   "scripts": {
-    "build": "babel src --out-dir dist && uglifyjs dist/*.js -o dist/*.js",
+    "build": "babel src --out-dir dist",
     "prettify": "yarn prettier --write \"**/*.js\"",
     "test": "jest"
   },
