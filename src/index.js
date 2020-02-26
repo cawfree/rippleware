@@ -6,42 +6,43 @@ import { typeCheck } from "type-check";
 
 import createHooks from "./createHooks";
 
-export const isRippleware = e => typeCheck('Function', e) && typeCheck('Function', e.use) && typeCheck('Function', e.sep);
+export const isRippleware = e =>
+  typeCheck("Function", e) &&
+  typeCheck("Function", e.use) &&
+  typeCheck("Function", e.sep);
 
 const secret = nanoid();
 
-const isSingleRippleware = ([r, ...extras]) => (extras.length === 0) && isRippleware(r);
+const isSingleRippleware = ([r, ...extras]) =>
+  extras.length === 0 && isRippleware(r);
 
 const transforms = Object.freeze({
   identity: () => e => e,
   first: () => ([e]) => e,
-  sep: () => ([...e]) => [].concat(...e),
+  sep: () => ([...e]) => [].concat(...e)
 });
 
-const isNestedArray = e => e.reduce(
-  (r, e) => r || Array.isArray(e),
-  false,
-);
+const isNestedArray = e => e.reduce((r, e) => r || Array.isArray(e), false);
 
-const isMatcherDeclaration = e => typeCheck(
-  '[(Function|String,Function)]',
-  e,
-);
+const isMatcherDeclaration = e => typeCheck("[(Function|String,Function)]", e);
 
 const match = (params, arg, meta) => [
   (e, ...extras) => {
     for (let i = 0; i < params.length; i += 1) {
       const [shouldMatch, exec] = params[i];
-      if (typeCheck('Function', shouldMatch) && shouldMatch(arg)) {
+      if (typeCheck("Function", shouldMatch) && shouldMatch(arg)) {
         return exec(arg, ...extras);
-      } else if (typeCheck('String', shouldMatch) && typeCheck(shouldMatch, arg)) {
+      } else if (
+        typeCheck("String", shouldMatch) &&
+        typeCheck(shouldMatch, arg)
+      ) {
         return exec(arg, ...extras);
       }
     }
     throw new Error(`Unable to find a valid matcher for ${arg}.`);
   },
   arg,
-  meta,
+  meta
 ];
 
 const shouldIndex = (param, arg, meta) => {
@@ -50,19 +51,23 @@ const shouldIndex = (param, arg, meta) => {
       if (isMatcherDeclaration(param)) {
         return match(param, arg, meta);
       }
-      throw new Error("Arrays of middleware must only be of a single-dimension.");
+      throw new Error(
+        "Arrays of middleware must only be of a single-dimension."
+      );
     }
     const { length } = param;
     if (length === 1) {
-      console.warn('⚠️', 'Encountered a single array of middleware. This is unoptimized; you can just drop the array notation altogether.', '(', param, ')');
+      console.warn(
+        "⚠️",
+        "Encountered a single array of middleware. This is unoptimized; you can just drop the array notation altogether.",
+        "(",
+        param,
+        ")"
+      );
       const [p] = param;
       return shouldIndex(p, arg, meta);
     }
-    return [
-      param,
-      param.map(() => arg),
-      param.map(() => meta),
-    ];
+    return [param, param.map(() => arg), param.map(() => meta)];
   }
   return [param, arg, meta];
 };
@@ -97,113 +102,114 @@ const propagate = ([...params], [...args], [...metas]) => {
     const p = [...Array(params.length - args.length)];
     return ensureIndexed(params, [...args, ...p], [...metas, ...p]);
   }
-  throw new Error(`There is no viable way to propagate between ${params} and ${args}.`);
+  throw new Error(
+    `There is no viable way to propagate between ${params} and ${args}.`
+  );
 };
 
 const execute = (param, arg, meta, { ...hooks }) => {
-  return Promise
-    .resolve()
-    .then(
-      () => {
-        if (isRippleware(param)) {
-          const { useGlobal } = hooks;
-          const opts = Object.freeze({
-            useGlobal,
-            meta: [meta],
-          });
-          return param(secret, opts, ...arg);
-        } else if (Array.isArray(param)) {
-          return Promise.all(param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks })))
-            .then(results => [
-              results.map(([data]) => data),
-              results.map(([_, meta]) => meta),
-            ]);
-        } else if (typeCheck('RegExp{source:String}', param)) {
-          return Promise.resolve(
-            [
-              jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, "")),
-              meta,
-            ],
-          );
-        } else if (typeCheck('Function', param)) {
-          let metaOut = meta;
-          const extraHooks = {
-            ...hooks,
-            useMeta: (...args) => {
-              if (args.length === 0) {
-                return meta;
-              } else if (args.length === 1) {
-                const [nextMeta] = args;
-                metaOut = nextMeta;
-              } else {
-                metaOut = args;
-              }
-            },
-          };
-          return Promise.resolve(param(arg, { ...extraHooks }))
-            .then(data => [data, metaOut]);
+  return Promise.resolve().then(() => {
+    if (isRippleware(param)) {
+      const { useGlobal } = hooks;
+      const opts = Object.freeze({
+        useGlobal,
+        meta: [meta]
+      });
+      return param(secret, opts, ...arg);
+    } else if (Array.isArray(param)) {
+      return Promise.all(
+        param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks }))
+      ).then(results => [
+        results.map(([data]) => data),
+        results.map(([_, meta]) => meta)
+      ]);
+    } else if (typeCheck("RegExp{source:String}", param)) {
+      return Promise.resolve([
+        jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, "")),
+        meta
+      ]);
+    } else if (typeCheck("Function", param)) {
+      let metaOut = meta;
+      const extraHooks = {
+        ...hooks,
+        useMeta: (...args) => {
+          if (args.length === 0) {
+            return meta;
+          } else if (args.length === 1) {
+            const [nextMeta] = args;
+            metaOut = nextMeta;
+          } else {
+            metaOut = args;
+          }
         }
-        throw new Error(`Encountered unknown execution format, ${param}.`);
-      },
-    );
+      };
+      return Promise.resolve(param(arg, { ...extraHooks })).then(data => [
+        data,
+        metaOut
+      ]);
+    }
+    throw new Error(`Encountered unknown execution format, ${param}.`);
+  });
 };
 
-const executeStage = (rootId, stageId, nextTransform, [...params], [...args], [...metas], { ...hooks }) => Promise
-  .resolve()
-  .then(
-    () => Promise
-      .all(
-        params.map(
-          (param, i) => execute(param, args[i], metas[i], { ...hooks }),
-        ),
-      ),
-  )
-  .then(
-    ([...results]) => [
+const executeStage = (
+  rootId,
+  stageId,
+  nextTransform,
+  [...params],
+  [...args],
+  [...metas],
+  { ...hooks }
+) =>
+  Promise.resolve()
+    .then(() =>
+      Promise.all(
+        params.map((param, i) =>
+          execute(param, args[i], metas[i], { ...hooks })
+        )
+      )
+    )
+    .then(([...results]) => [
       nextTransform(results.map(([data]) => data)),
-      nextTransform(results.map(([_, meta]) => meta)),
-    ],
-  );
+      nextTransform(results.map(([_, meta]) => meta))
+    ]);
 
-const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) => params
-  .reduce(
-    (p, [stageId, [...params], globalTransform], i, orig) => p
-      .then(
-        ([[...dataFromLastStage], [...metasFromLastStage]]) => {
-          const { length } = orig;
-          const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(params, dataFromLastStage, metasFromLastStage);
-          const topology = Object.freeze([i, length]);
-          return executeStage(
-            id,
-            stageId,
-            nextTransform,
-            [...nextParams],
-            [...nextArgs],
-            [...nextMetas],
-            {
-              ...hooks,
-              useTopology: () => topology,
-            },
-          )
-            .then(
-              ([data, metaOut]) => [
-                globalTransform(data),
-                globalTransform(metaOut),
-              ],
-            );
-        },
-      ),
-    Promise.resolve([[...args], [...metas]]),
+const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
+  params.reduce(
+    (p, [stageId, [...params], globalTransform], i, orig) =>
+      p.then(([[...dataFromLastStage], [...metasFromLastStage]]) => {
+        const { length } = orig;
+        const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(
+          params,
+          dataFromLastStage,
+          metasFromLastStage
+        );
+        const topology = Object.freeze([i, length]);
+        return executeStage(
+          id,
+          stageId,
+          nextTransform,
+          [...nextParams],
+          [...nextArgs],
+          [...nextMetas],
+          {
+            ...hooks,
+            useTopology: () => topology
+          }
+        ).then(([data, metaOut]) => [
+          globalTransform(data),
+          globalTransform(metaOut)
+        ]);
+      }),
+    Promise.resolve([[...args], [...metas]])
   );
 
 const throwOnInvokeThunk = name => () => {
-  throw new Error(
-    `It is not possible to call ${name}() after invoking.`,
-  );
+  throw new Error(`It is not possible to call ${name}() after invoking.`);
 };
 
 const parseConstructor = (...args) => {
-  if (typeCheck('(Function)', args)) {
+  if (typeCheck("(Function)", args)) {
     return args;
   } else if (args.length === 0) {
     return [() => undefined];
@@ -211,10 +217,10 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
-const isInternalConstructor = (maybeSecret, ...args) => typeCheck("String", maybeSecret) && maybeSecret === secret;
+const isInternalConstructor = (maybeSecret, ...args) =>
+  typeCheck("String", maybeSecret) && maybeSecret === secret;
 
 const compose = (...args) => {
-
   const params = [];
   const id = nanoid();
 
@@ -226,22 +232,15 @@ const compose = (...args) => {
 
     const extraHooks = {
       ...hooks,
-      useGlobal: () => global,
+      useGlobal: () => global
     };
 
-    return executeParams(
-      id,
-      extraHooks,
-      params,
-      args,
-      meta,
-    );
+    return executeParams(id, extraHooks, params, args, meta);
   };
 
   const global = globalState();
 
   const r = function(...args) {
-
     r.use = throwOnInvokeThunk("use");
     r.sep = throwOnInvokeThunk("sep");
 
@@ -251,12 +250,16 @@ const compose = (...args) => {
         const { useGlobal, meta } = opts;
         return exec({ global: global || useGlobal(), meta }, ...extras);
       }
-      throw new Error(`Encountered an internal constructor which specified an incorrect options argument.`);
+      throw new Error(
+        `Encountered an internal constructor which specified an incorrect options argument.`
+      );
     }
-    
-    return exec({ global, meta: params.map(() => undefined) }, ...args)
-      // XXX: Drop meta information for top-level callers.
-      .then(transforms.first());
+
+    return (
+      exec({ global, meta: params.map(() => undefined) }, ...args)
+        // XXX: Drop meta information for top-level callers.
+        .then(transforms.first())
+    );
   };
 
   r.use = (...args) => {
@@ -276,8 +279,7 @@ export const justOnce = (...args) => (input, { useState, useGlobal }) => {
   const [didExecute, setDidExecute] = useState(false);
   if (!didExecute) {
     setDidExecute(true);
-    return app(input)
-      .then(transforms.first());
+    return app(input).then(transforms.first());
   }
   return Promise.resolve(input);
 };

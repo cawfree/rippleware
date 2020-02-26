@@ -14,12 +14,9 @@ const retainState = () => (input, { useState }) => {
 
 const truthyOnChange = () => (input, { useEffect }) => {
   let changed = false;
-  useEffect(
-    () => {
-      changed = true;
-    },
-    [input],
-  );
+  useEffect(() => {
+    changed = true;
+  }, [input]);
   return changed;
 };
 
@@ -40,85 +37,66 @@ const buildStore = () => {
 };
 
 it("should be possible to define a matcher array", async () => {
-  const app = compose()
-    .use(
-      [
-        ['Number', () => 'This is a number.'],
-        ['[Number]', () => 'This is an array of numbers.'],
-        ['*', () => 'Something else.'],
-      ],
-    );
+  const app = compose().use([
+    ["Number", () => "This is a number."],
+    ["[Number]", () => "This is an array of numbers."],
+    ["*", () => "Something else."]
+  ]);
 
-  expect(await app(0)).toEqual(['This is a number.']);
-  expect(await app([0])).toEqual(['This is an array of numbers.']);
-  expect(await app(true)).toEqual(['Something else.']);
+  expect(await app(0)).toEqual(["This is a number."]);
+  expect(await app([0])).toEqual(["This is an array of numbers."]);
+  expect(await app(true)).toEqual(["Something else."]);
 
-  const app2 = compose()
-    .use(
-      compose()
-        .use(
-          [
-            [input => input > 0.5, () => 'Greater!'],
-            ['[Number]', () => 'This is also an array of numbers.'],
-          ],
-        ),
-    );
+  const app2 = compose().use(
+    compose().use([
+      [input => input > 0.5, () => "Greater!"],
+      ["[Number]", () => "This is also an array of numbers."]
+    ])
+  );
 
-  expect(await app2(1)).toEqual(['Greater!']);
-  expect(app2(0.49))
-    .rejects
-    .toBeTruthy();
-  expect(await app2([1, 2, 3])).toEqual(['This is also an array of numbers.']);
+  expect(await app2(1)).toEqual(["Greater!"]);
+  expect(app2(0.49)).rejects.toBeTruthy();
+  expect(await app2([1, 2, 3])).toEqual(["This is also an array of numbers."]);
 });
 
 it("should be possible to use regular expressions to index on supplied data", async () => {
   const imdb = [
     {
-      t: 'Good!',
-      s: 1,
+      t: "Good!",
+      s: 1
     },
     {
-      t: 'Bad!',
-      s: 0,
-    },
+      t: "Bad!",
+      s: 0
+    }
   ];
-  const app = compose()
-    .sep([/$.*.t/, /$.*.s/]);
+  const app = compose().sep([/$.*.t/, /$.*.s/]);
 
-  expect(await app(imdb)).toEqual([['Good!', 'Bad!'], [1, 0]]);
+  expect(await app(imdb)).toEqual([
+    ["Good!", "Bad!"],
+    [1, 0]
+  ]);
 });
 
 it("should be possible to aggregate multiple middleware actions against a single channel of data", async () => {
-  const app = compose()
-    .use(
-      [addOne(), addOne()],
-    );
+  const app = compose().use([addOne(), addOne()]);
   expect(await app(1)).toEqual([[2, 2]]);
 
-  const app2 = compose()
-    .use(
-      compose()
-        .use(
-          [addOne(), addOne()],
-        ),
-    );
+  const app2 = compose().use(compose().use([addOne(), addOne()]));
   expect(await app2(1)).toEqual([[2, 2]]);
 
-  const app3 = compose()
-    .use(
-      compose()
-        .use(
-          [addOne(), addOne()],
-          [addOne(), addOne()],
-        ),
-    );
+  const app3 = compose().use(
+    compose().use([addOne(), addOne()], [addOne(), addOne()])
+  );
 
-  expect(await app3(1, 2)).toEqual([[2, 2], [3, 3]]);
+  expect(await app3(1, 2)).toEqual([
+    [2, 2],
+    [3, 3]
+  ]);
 });
 
 it("should be capable of providing a useState hook", async () => {
-  const app = compose()
-    .use(retainState());
+  const app = compose().use(retainState());
 
   // TODO: It looks like we can't persist truthy values.
   expect(await app(0)).toEqual([0]);
@@ -126,18 +104,14 @@ it("should be capable of providing a useState hook", async () => {
 
   const app2 = compose()
     .use(retainState(), retainState())
-    .use(
-      compose()
-        .use(retainState(), retainState()),
-    );
+    .use(compose().use(retainState(), retainState()));
 
   expect(await app2(3, 4)).toEqual([3, 4]);
   expect(await app2(5, 6)).toEqual([3, 4]);
 });
 
 it("should be capable of providing a useEffect hook", async () => {
-  const app = compose()
-    .use(truthyOnChange());
+  const app = compose().use(truthyOnChange());
 
   expect(await app(0)).toEqual([true]);
   expect(await app(0)).toEqual([false]);
@@ -151,8 +125,7 @@ it("should be capable of providing a useEffect hook", async () => {
 });
 
 it("should not be possible to append new middleware after invocation, but the instance must still *look* like rippleware", async () => {
-  const app = compose()
-    .use(() => true);
+  const app = compose().use(() => true);
 
   expect(await app(undefined)).toEqual([true]);
 
@@ -163,47 +136,46 @@ it("should not be possible to append new middleware after invocation, but the in
 });
 
 it("should propagate values in a common-sense way", async () => {
-  const app = compose()
-    .use(i => i, i => i, i => i);
+  const app = compose().use(
+    i => i,
+    i => i,
+    i => i
+  );
 
   expect(await app(1, 2, 3)).toEqual([1, 2, 3]);
 
   const app2 = compose()
     .use(
       i => i,
-      i => i,
+      i => i
     )
     .use(
-      compose()
-        .use(
-          compose()
-            .use(
-              i => i,
-              i => i,
-            ),
-        ),
+      compose().use(
+        compose().use(
+          i => i,
+          i => i
+        )
+      )
     );
 
   expect(await app2(1, 2)).toEqual([1, 2]);
 
-  const app3 = compose()
-    .use(i => i);
+  const app3 = compose().use(i => i);
 
-  expect(await app3(3))
-    .toEqual([3]);
-  
-  expect(app3(3, 5))
-    .rejects
-    .toBeTruthy();
+  expect(await app3(3)).toEqual([3]);
+
+  expect(app3(3, 5)).rejects.toBeTruthy();
 
   const app4 = compose()
-    .use(i => i, i => i)
     .use(
-      compose()
-        .use(
-          i => i,
-          i => i,
-        ),
+      i => i,
+      i => i
+    )
+    .use(
+      compose().use(
+        i => i,
+        i => i
+      )
     );
 
   expect(await app4(1)).toEqual([1, undefined]);
@@ -211,20 +183,16 @@ it("should propagate values in a common-sense way", async () => {
 
 it("must support the instantiation and propagation of global state", async () => {
   const app = compose(buildStore)
-    .use(
-      (_, { useGlobal }) => {
-        const { dispatch } = useGlobal();
-        dispatch(increment());
-        return null;
-      },
-    )
-    .use(
-      (_, { useGlobal }) => {
-        const { getState } = useGlobal();
-        const cnt = getState().get('cnt');
-        return cnt;
-      },
-    );
+    .use((_, { useGlobal }) => {
+      const { dispatch } = useGlobal();
+      dispatch(increment());
+      return null;
+    })
+    .use((_, { useGlobal }) => {
+      const { getState } = useGlobal();
+      const cnt = getState().get("cnt");
+      return cnt;
+    });
 
   expect(await app()).toEqual([1]);
   expect(await app()).toEqual([2]);
@@ -232,22 +200,17 @@ it("must support the instantiation and propagation of global state", async () =>
 
   const app2 = compose(buildStore)
     .use(
-      compose()
-        .use(
-          (_, { useGlobal }) => {
-            const { dispatch } = useGlobal();
-            dispatch(increment());
-            return null;
-          },
-        ),
+      compose().use((_, { useGlobal }) => {
+        const { dispatch } = useGlobal();
+        dispatch(increment());
+        return null;
+      })
     )
-    .use(
-      (_, { useGlobal }) => {
-        const { getState } = useGlobal();
-        const cnt = getState().get('cnt');
-        return cnt;
-      },
-    );
+    .use((_, { useGlobal }) => {
+      const { getState } = useGlobal();
+      const cnt = getState().get("cnt");
+      return cnt;
+    });
 
   expect(await app2()).toEqual([1]);
   expect(await app2()).toEqual([2]);
@@ -255,24 +218,19 @@ it("must support the instantiation and propagation of global state", async () =>
 });
 
 it("must not override the global state of nested middleware if they have one defined", async () => {
-  const app = compose(buildStore)
-    .use(
-      compose(buildStore)
-        .use(
-          (_, { useGlobal }) => {
-            const { dispatch } = useGlobal();
-            dispatch(increment());
-            return null;
-          },
-        )
-        .use(
-          (_, { useGlobal }) => {
-            const { getState } = useGlobal();
-            const cnt = getState().get('cnt');
-            return cnt;
-          },
-        ),
-    );
+  const app = compose(buildStore).use(
+    compose(buildStore)
+      .use((_, { useGlobal }) => {
+        const { dispatch } = useGlobal();
+        dispatch(increment());
+        return null;
+      })
+      .use((_, { useGlobal }) => {
+        const { getState } = useGlobal();
+        const cnt = getState().get("cnt");
+        return cnt;
+      })
+  );
 
   expect(await app()).toEqual([1]);
   expect(await app()).toEqual([2]);
@@ -280,22 +238,17 @@ it("must not override the global state of nested middleware if they have one def
 
   const app2 = compose(buildStore)
     .use(
-      compose(buildStore)
-        .use(
-          (_, { useGlobal }) => {
-            const { dispatch } = useGlobal();
-            dispatch(increment());
-            return null;
-          },
-        ),
+      compose(buildStore).use((_, { useGlobal }) => {
+        const { dispatch } = useGlobal();
+        dispatch(increment());
+        return null;
+      })
     )
-    .use(
-      (_, { useGlobal }) => {
-        const { getState } = useGlobal();
-        const cnt = getState().get('cnt');
-        return cnt;
-      },
-    );
+    .use((_, { useGlobal }) => {
+      const { getState } = useGlobal();
+      const cnt = getState().get("cnt");
+      return cnt;
+    });
 
   expect(await app2()).toEqual([0]);
   expect(await app2()).toEqual([0]);
@@ -311,22 +264,18 @@ it("should allow the propagation of the useMeta hook", async () => {
 
   const app2 = compose()
     .use((_, { useMeta }) => useMeta(5))
-    .use(
-      compose()
-        .use((_, { useMeta }) => useMeta()),
-    );
+    .use(compose().use((_, { useMeta }) => useMeta()));
 
   expect(await app2()).toEqual([5]);
 
   const app3 = compose()
     .use((_, { useMeta }) => useMeta(5))
     .use(
-      compose()
-        .use(
-          (_, { useMeta }) => useMeta(),
-          (_, { useMeta }) => useMeta(),
-          (_, { useMeta }) => useMeta(),
-        ),
+      compose().use(
+        (_, { useMeta }) => useMeta(),
+        (_, { useMeta }) => useMeta(),
+        (_, { useMeta }) => useMeta()
+      )
     );
 
   expect(await app3()).toEqual([5, undefined, undefined]);
@@ -343,47 +292,39 @@ it("should allow the propagation of the useMeta hook", async () => {
   const app5 = compose()
     .use(
       (_, { useMeta }) => useMeta(100),
-      compose()
-        .use((_, { useMeta }) => useMeta(10)),
+      compose().use((_, { useMeta }) => useMeta(10))
     )
     .sep(
       (_, { useMeta }) => useMeta(),
-      (_, { useMeta }) => useMeta(),
+      (_, { useMeta }) => useMeta()
     );
 
   expect(await app5()).toEqual([100, 10]);
 });
 
 it("should be possible to determine the topology of execution using useTopology", async () => {
-  const app = compose()
-    .use((_, { useTopology }) => useTopology());
+  const app = compose().use((_, { useTopology }) => useTopology());
 
   expect(await app()).toEqual([[0, 1]]);
 
-  const app2 = compose()
-    .use(
-      compose()
-        .use(() => null)
-        .use(() => null)
-        .use((_, { useTopology }) => useTopology()),
-    );
+  const app2 = compose().use(
+    compose()
+      .use(() => null)
+      .use(() => null)
+      .use((_, { useTopology }) => useTopology())
+  );
 
   expect(await app2()).toEqual([[2, 3]]);
 });
 
 it("should be possible to execute some middleware only once", async () => {
-  const app = compose()
-    .use(justOnce(i => !i));
+  const app = compose().use(justOnce(i => !i));
 
   expect(await app(true)).toEqual([false]);
   expect(await app(true)).toEqual([true]);
   expect(await app(false)).toEqual([false]);
 
-  const app2 = compose()
-    .use(
-      compose()
-        .use(justOnce(i => !i)),
-    );
+  const app2 = compose().use(compose().use(justOnce(i => !i)));
 
   expect(await app2(true)).toEqual([false]);
   expect(await app2(true)).toEqual([true]);
@@ -391,10 +332,7 @@ it("should be possible to execute some middleware only once", async () => {
 
   const app3 = compose()
     .use((_, { useMeta }) => useMeta(4))
-    .use(
-      compose()
-        .use(justOnce(() => null)),
-    )
+    .use(compose().use(justOnce(() => null)))
     .use((_, { useMeta }) => useMeta());
 
   expect(await app3(null)).toEqual([4]);
@@ -405,6 +343,6 @@ it("should be possible to define skipped channels of computation", async () => {
     .use(noop(), noop())
     .use(noop(), i => i + 1)
     .use(i => i + 2, noop());
-  
+
   expect(await app(1, 2)).toEqual([3, 3]);
 });

@@ -4,7 +4,6 @@ import deepEqual from "deep-equal";
 // https://www.netlify.com/blog/2019/03/11/deep-dive-how-do-react-hooks-really-work/
 
 export default () => {
-
   let currentHook = 0;
 
   const { ...hooks } = (function() {
@@ -21,7 +20,11 @@ export default () => {
       },
       useState(initialValue) {
         const hasDeclaredHook = hooks[currentHook] !== undefined;
-        hooks[currentHook] = hasDeclaredHook ? hooks[currentHook] : (typeCheck("Function", initialValue) ? initialValue() : initialValue);
+        hooks[currentHook] = hasDeclaredHook
+          ? hooks[currentHook]
+          : typeCheck("Function", initialValue)
+          ? initialValue()
+          : initialValue;
 
         const setStateHookIndex = currentHook;
         const setState = newState => (hooks[setStateHookIndex] = newState);
