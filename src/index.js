@@ -11,7 +11,8 @@ export const isRippleware = e =>
   typeCheck("Function", e.use) &&
   typeCheck("Function", e.sep) &&
   typeCheck("Function", e.pre) &&
-  typeCheck("Function", e.mix);
+  typeCheck("Function", e.mix) &&
+  typeCheck("Function", e.all);
 
 const expression = (param, arg) => jsonpath
   .query(arg, param.toString().replace(/^\/|\/$/g, ""));
@@ -19,6 +20,7 @@ const expression = (param, arg) => jsonpath
 const secrets = Object.freeze({
   internal: nanoid(),
   pre: nanoid(),
+  all: nanoid(),
 });
 
 const isSingleRippleware = ([r, ...extras]) =>
@@ -202,13 +204,14 @@ const executeStage = (
 
 const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
   params.reduce(
-    (p, [stageId, [...params], globalTransform], i, orig) =>
+    (p, [stageId, [...params], globalTransform, secret], i, orig) =>
       p.then(([[...dataFromLastStage], [...metasFromLastStage]]) => {
         const { length } = orig;
         const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(
           params,
           dataFromLastStage,
-          metasFromLastStage
+          metasFromLastStage,
+          secret,
         );
         const topology = Object.freeze([i, length]);
         return executeStage(
@@ -316,6 +319,7 @@ const compose = (...args) => {
     r.sep = throwOnInvokeThunk("sep");
     r.pre = throwOnInvokeThunk("pre");
     r.mix = throwOnInvokeThunk("mix");
+    r.all = throwOnInvokeThunk("all");
 
     if (isInternalConstructor(...args)) {
       const [secret, opts, ...extras] = args;
@@ -352,6 +356,10 @@ const compose = (...args) => {
   };
   r.mix = (...args) => {
     params.push([nanoid(), args, transforms.mix(), null]);
+    return r;
+  };
+  r.all = (...args) => {
+    params.push([nanoid(), args, transforms.identity(), secrets.all]);
     return r;
   };
   return r;

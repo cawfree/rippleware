@@ -493,3 +493,12 @@ it("should be possible to merge channels", async () => {
   expect(await app2({a:1},{b:2}))
     .toEqual([[ 1, 2 ]]);
 });
+
+it("should be possible to inherit all parameters for a middleware step", async () => {
+  const app = compose() 
+    .use(i => i, i => i)
+    .all(i => i, i => i)
+    .use(i => i, i => i);
+
+  console.log(await app(3, 4));
+});
