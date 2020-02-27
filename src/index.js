@@ -154,8 +154,6 @@ const execute = (param, arg, meta, { ...hooks }) => {
         expression(param, arg),
         meta
       ]);
-    } else if (typeCheck("[RegExp{source:String}]", param)) {
-      throw 'yeah i got here cool';
     } else if (typeCheck("Function", param)) {
       let metaOut = meta;
       const extraHooks = {
