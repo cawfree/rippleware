@@ -12,6 +12,9 @@ export const isRippleware = e =>
   typeCheck("Function", e.sep) &&
   typeCheck("Function", e.pre);
 
+const expression = (param, arg) => jsonpath
+  .query(arg, param.toString().replace(/^\/|\/$/g, ""));
+
 const secrets = Object.freeze({
   internal: nanoid(),
   pre: nanoid(),
@@ -30,17 +33,19 @@ const isNestedArray = e => e.reduce((r, e) => r || Array.isArray(e), false);
 
 const isMatcherDeclaration = e => typeCheck("[(Function|String,Function)]", e);
 
+const isAggregateIndexDeclaration = e => typeCheck("[[RegExp{source:String}]]", e);
+
 const match = (params, arg, meta) => [
   (e, ...extras) => {
     for (let i = 0; i < params.length; i += 1) {
       const [shouldMatch, exec] = params[i];
       if (typeCheck("Function", shouldMatch) && shouldMatch(arg)) {
-        return exec(arg, ...extras);
+        return exec(e, ...extras);
       } else if (
         typeCheck("String", shouldMatch) &&
         typeCheck(shouldMatch, arg)
       ) {
-        return exec(arg, ...extras);
+        return exec(e, ...extras);
       }
     }
     throw new Error(`Unable to find a valid matcher for ${arg}.`);
@@ -49,11 +54,19 @@ const match = (params, arg, meta) => [
   meta
 ];
 
+const aggregate = (params, arg, meta) => [
+  dataIn => params.map(p => p.map(q => expression(q, dataIn))),
+  arg,
+  meta,
+];
+
 const shouldIndex = (param, arg, meta) => {
   if (Array.isArray(param)) {
     if (isNestedArray(param)) {
       if (isMatcherDeclaration(param)) {
         return match(param, arg, meta);
+      } else if (isAggregateIndexDeclaration(param)) {
+        return aggregate(param, arg, meta); 
       }
       throw new Error(
         "Arrays of middleware must only be of a single-dimension."
@@ -129,9 +142,11 @@ const execute = (param, arg, meta, { ...hooks }) => {
       ]);
     } else if (typeCheck("RegExp{source:String}", param)) {
       return Promise.resolve([
-        jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, "")),
+        expression(param, arg),
         meta
       ]);
+    } else if (typeCheck("[RegExp{source:String}]", param)) {
+      throw 'yeah i got here cool';
     } else if (typeCheck("Function", param)) {
       let metaOut = meta;
       const extraHooks = {

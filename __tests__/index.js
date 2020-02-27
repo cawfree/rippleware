@@ -36,6 +36,17 @@ const buildStore = () => {
   return createStore(reducer);
 };
 
+const imdb = Object.freeze([
+  {
+    t: "Good!",
+    s: 1
+  },
+  {
+    t: "Bad!",
+    s: 0
+  }
+]);
+
 it("should be possible to define a matcher array", async () => {
   const app = compose().use([
     ["Number", () => "This is a number."],
@@ -60,16 +71,7 @@ it("should be possible to define a matcher array", async () => {
 });
 
 it("should be possible to use regular expressions to index on supplied data", async () => {
-  const imdb = [
-    {
-      t: "Good!",
-      s: 1
-    },
-    {
-      t: "Bad!",
-      s: 0
-    }
-  ];
+
   const app = compose().sep([/$.*.t/, /$.*.s/]);
 
   expect(await app(imdb)).toEqual([
@@ -447,4 +449,19 @@ it("should be possible to use pre-evaluation on individual parameters", async ()
 
   expect(await app3()).toEqual([1]);
   expect(await app3()).toEqual([1]);
+});
+
+it("should be possible to aggregate object indexing across a single term", async () => {
+  const app = compose()
+    .use(
+      [
+        [
+          /$.*.t/,
+          /$.*.s/,
+        ],
+        [/$.*.s/],
+      ],
+    );
+
+  expect(await app(imdb)).toEqual([[[["Good!","Bad!"],[1,0]],[[1,0]]]]);
 });
