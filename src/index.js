@@ -202,16 +202,33 @@ const executeStage = (
       nextTransform(results.map(([_, meta]) => meta))
     ]);
 
+const prepareChannel = ([...params], [...dataFromLastStage], [...metasFromLastStage], secret) => {
+  if (secret === secrets.all) {
+    return [
+      params,
+      dataFromLastStage.map(() => dataFromLastStage),
+      metasFromLastStage.map(() => metasFromLastStage),
+    ];
+  }
+  return [
+    params,
+    dataFromLastStage,
+    metasFromLastStage,
+  ];
+};
+
 const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
   params.reduce(
     (p, [stageId, [...params], globalTransform, secret], i, orig) =>
       p.then(([[...dataFromLastStage], [...metasFromLastStage]]) => {
         const { length } = orig;
         const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(
-          params,
-          dataFromLastStage,
-          metasFromLastStage,
-          secret,
+          ...prepareChannel(
+            params,
+            dataFromLastStage,
+            metasFromLastStage,
+            secret,
+          ),
         );
         const topology = Object.freeze([i, length]);
         return executeStage(

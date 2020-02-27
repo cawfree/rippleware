@@ -496,9 +496,10 @@ it("should be possible to merge channels", async () => {
 
 it("should be possible to inherit all parameters for a middleware step", async () => {
   const app = compose() 
-    .use(i => i, i => i)
-    .all(i => i, i => i)
-    .use(i => i, i => i);
+    .use(i => i, i => i, i => i)
+    .all(i => i, i => i, /$.*.a/)
+    .use(i => i, i => i, i => i);
 
-  console.log(await app(3, 4));
+  expect(await app(3, 4, {a:1}))
+    .toEqual([ [ 3, 4, { a: 1 } ], [ 3, 4, { a: 1 } ], [ 1 ] ]);
 });
