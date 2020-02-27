@@ -10,7 +10,8 @@ export const isRippleware = e =>
   typeCheck("Function", e) &&
   typeCheck("Function", e.use) &&
   typeCheck("Function", e.sep) &&
-  typeCheck("Function", e.pre);
+  typeCheck("Function", e.pre) &&
+  typeCheck("Function", e.mix);
 
 const expression = (param, arg) => jsonpath
   .query(arg, param.toString().replace(/^\/|\/$/g, ""));
@@ -26,7 +27,15 @@ const isSingleRippleware = ([r, ...extras]) =>
 const transforms = Object.freeze({
   identity: () => e => e,
   first: () => ([e]) => e,
-  sep: () => ([...e]) => [].concat(...e)
+  sep: () => ([...e]) => [].concat(...e),
+  mix: () => ([...e]) => e
+    .reduce(
+      (arr, e) => {
+        arr[0].push(e);
+        return arr;
+      },
+      [[]],
+    )
 });
 
 const isNestedArray = e => e.reduce((r, e) => r || Array.isArray(e), false);
@@ -308,6 +317,7 @@ const compose = (...args) => {
     r.use = throwOnInvokeThunk("use");
     r.sep = throwOnInvokeThunk("sep");
     r.pre = throwOnInvokeThunk("pre");
+    r.mix = throwOnInvokeThunk("mix");
 
     if (isInternalConstructor(...args)) {
       const [secret, opts, ...extras] = args;
@@ -341,6 +351,10 @@ const compose = (...args) => {
       return r;
     }
     throw new Error("Pre-execution stages must specify a single function.");
+  };
+  r.mix = (...args) => {
+    params.push([nanoid(), args, transforms.mix(), null]);
+    return r;
   };
   return r;
 };

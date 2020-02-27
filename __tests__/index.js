@@ -465,3 +465,31 @@ it("should be possible to aggregate object indexing across a single term", async
 
   expect(await app(imdb)).toEqual([[[["Good!","Bad!"],[1,0]],[[1,0]]]]);
 });
+
+it("should be possible to merge channels", async () => {
+
+  const passWithSomeMeta = n => (i, { useMeta }) => {
+    useMeta(n);
+    return i;
+  };
+
+  const app = compose()
+    .mix(passWithSomeMeta(1), passWithSomeMeta(2))
+    .use(
+      compose()
+        .use(i => i),
+    );
+
+  expect(await app({a:1},{b:2}))
+    .toEqual( [ [ { a: 1 }, { b: 2 } ] ]);
+
+  const app2 = compose()
+    .mix(passWithSomeMeta(1), passWithSomeMeta(2))
+    .use(
+      compose()
+        .use((_, { useMeta }) => useMeta()),
+    );
+
+  expect(await app2({a:1},{b:2}))
+    .toEqual([[ 1, 2 ]]);
+});
