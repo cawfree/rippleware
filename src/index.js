@@ -119,7 +119,7 @@ const ensureIndexed = ([...params], [...args], [...metas]) => {
   return [nextParams, nextArgs, nextMetas, transforms.identity()];
 };
 
-const propagate = ([...params], [...args], [...metas]) => {
+const propagate = ([...params], [...args], [...metas], secret) => {
   if (isSingleRippleware(params)) {
     const [r] = params;
     const [m] = metas;
@@ -129,6 +129,8 @@ const propagate = ([...params], [...args], [...metas]) => {
   } else if (params.length > args.length) {
     const p = [...Array(params.length - args.length)];
     return ensureIndexed(params, [...args, ...p], [...metas, ...p]);
+  } else if (secret === secrets.all) {
+    return ensureIndexed(params, args, metas);
   }
   throw new Error(
     `There is no viable way to propagate between ${params} and ${args}.`
@@ -208,12 +210,14 @@ const prepareChannel = ([...params], [...dataFromLastStage], [...metasFromLastSt
       params,
       dataFromLastStage.map(() => dataFromLastStage),
       metasFromLastStage.map(() => metasFromLastStage),
+      secret,
     ];
   }
   return [
     params,
     dataFromLastStage,
     metasFromLastStage,
+    secret,
   ];
 };
 
@@ -376,7 +380,7 @@ const compose = (...args) => {
     return r;
   };
   r.all = (...args) => {
-    params.push([nanoid(), args, transforms.identity(), secrets.all]);
+    params.push([nanoid(), args, args.length === 1  ? transforms.sep() : transforms.identity(), secrets.all]);
     return r;
   };
   return r;

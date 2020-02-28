@@ -502,4 +502,36 @@ it("should be possible to inherit all parameters for a middleware step", async (
 
   expect(await app(3, 4, {a:1}))
     .toEqual([ [ 3, 4, { a: 1 } ], [ 3, 4, { a: 1 } ], [ 1 ] ]);
+
+  const someAggregator = () => i => i;
+
+  const app2 = compose()
+    .all(someAggregator(), someAggregator());
+
+  expect(await app2(1, 2))
+    .toEqual([[1, 2], [1, 2]]);
+
+  const app3 = compose()
+    .all(someAggregator());
+
+  expect(await app3(1, 2))
+    .toEqual([1, 2]);
+
+  const app4 = compose()
+    .use(
+      compose()
+        .all(someAggregator(), someAggregator()),
+    );
+
+  expect(await app4(1, 2))
+    .toEqual([ [ 1, 2 ], [ 1, 2 ] ]);
+
+  const app5 = compose()
+    .use(
+      compose()
+        .all(someAggregator()),
+    );
+
+  expect(await app5(1, 2))
+    .toEqual([1, 2]);
 });
