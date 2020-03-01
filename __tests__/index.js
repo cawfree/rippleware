@@ -535,3 +535,29 @@ it("should be possible to inherit all parameters for a middleware step", async (
   expect(await app5(1, 2))
     .toEqual([1, 2]);
 });
+
+it("should appropriately split meta", async () => {
+  const app = compose()
+    .use(
+      (i, { useMeta }) => {
+        useMeta("Hello!");
+        return i;
+      },
+      (i, { useMeta }) => {
+        useMeta("Goodbye!");
+        return i;
+      },
+    )
+    .sep(
+      [
+        (i, { useMeta }) => useMeta(),
+        (i, { useMeta }) => useMeta(),
+      ],
+      [
+        (i, { useMeta }) => useMeta(),
+        (i, { useMeta }) => useMeta(),
+      ],
+    );
+
+  expect(await app(1, 2)).toEqual([ 'Hello!', 'Hello!', 'Goodbye!', 'Goodbye!' ]);
+});
