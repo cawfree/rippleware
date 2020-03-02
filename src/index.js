@@ -225,7 +225,18 @@ const prepareChannel = (
       secret
     ];
   }
-  return [params, dataFromLastStage, metasFromLastStage, secret];
+  const shouldExtendMeta = params.length > 1 && metasFromLastStage.length === 1;
+  const [meta] = metasFromLastStage;
+  return [
+    params,
+    dataFromLastStage,
+    shouldExtendMeta ? [
+      ...metasFromLastStage,
+      ...[...Array(params.length - metasFromLastStage.length)]
+        .map(() => meta),
+    ] : metasFromLastStage,
+    secret,
+  ];
 };
 
 const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
