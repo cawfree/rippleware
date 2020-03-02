@@ -279,7 +279,7 @@ it("should allow the propagation of the useMeta hook", async () => {
       )
     );
 
-  expect(await app3()).toEqual([5, undefined, undefined]);
+  expect(await app3()).toEqual([5, 5, 5]);
 
   const app4 = compose()
     .use((_, { useMeta }) => useMeta(5))
@@ -586,4 +586,16 @@ it("should appropriately split meta", async () => {
     "Hello!",
     "Hello!"
   ]);
+});
+
+it("should broadcast singular meta across multiple channels", async () => {
+  const getMeta = () => (_, { useMeta }) => useMeta();
+  const app = compose()
+    .use((_, { useMeta }) => {
+      useMeta("Hi?");
+      return null;
+    })
+    .use(getMeta(), getMeta());
+
+  expect(await app(undefined)).toEqual(["Hi?", "Hi?"]);
 });

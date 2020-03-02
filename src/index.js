@@ -137,7 +137,8 @@ const propagate = ([...params], [...args], [...metas], secret) => {
     return ensureIndexed(params, args, metas, secret);
   } else if (params.length > args.length) {
     const p = [...Array(params.length - args.length)];
-    return ensureIndexed(params, [...args, ...p], [...metas, ...p], secret);
+    const m = p.map(() => (args.length === 1 ? metas[0] : undefined));
+    return ensureIndexed(params, [...args, ...p], [...metas, ...m], secret);
   } else if (secret === secrets.all) {
     return ensureIndexed(params, args, metas, secret);
   }
