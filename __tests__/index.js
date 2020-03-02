@@ -598,7 +598,7 @@ it("should broadcast singular meta across multiple channels", async () => {
     .use(getMeta(), getMeta());
 
   expect(await app(undefined)).toEqual(["Hi?", "Hi?"]);
-  
+
   const initialMeta = () => ({ useGlobal }) => {
     const { getState } = useGlobal();
     const meta = getState().toJS();
@@ -610,16 +610,12 @@ it("should broadcast singular meta across multiple channels", async () => {
 
   const app2 = compose(buildStore)
     .all(pre(initialMeta()))
-    .use(
-      getMeta(),
-      getMeta(),
-    );
+    .use(getMeta(), getMeta());
 
   const trainingResults = await app2(
     "/home/cawfree/Development/mnist-dataset/public/train-images-idx3-ubyte.json",
     "/home/cawfree/Development/mnist-dataset/public/train-labels-idx1-ubyte.json"
   );
 
-  expect(trainingResults)
-    .toEqual([ { cnt: 0 }, { cnt: 0 } ]);
+  expect(trainingResults).toEqual([{ cnt: 0 }, { cnt: 0 }]);
 });

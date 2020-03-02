@@ -230,12 +230,15 @@ const prepareChannel = (
   return [
     params,
     dataFromLastStage,
-    shouldExtendMeta ? [
-      ...metasFromLastStage,
-      ...[...Array(params.length - metasFromLastStage.length)]
-        .map(() => meta),
-    ] : metasFromLastStage,
-    secret,
+    shouldExtendMeta
+      ? [
+          ...metasFromLastStage,
+          ...[...Array(params.length - metasFromLastStage.length)].map(
+            () => meta
+          )
+        ]
+      : metasFromLastStage,
+    secret
   ];
 };
 
