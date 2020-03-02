@@ -14,13 +14,14 @@ export const isRippleware = e =>
   typeCheck("Function", e.mix) &&
   typeCheck("Function", e.all);
 
-const expression = (param, arg) => jsonpath
-  .query(arg, param.toString().replace(/^\/|\/$/g, ""));
+const expression = (param, arg) =>
+  jsonpath.query(arg, param.toString().replace(/^\/|\/$/g, ""));
 
 const secrets = Object.freeze({
   internal: nanoid(),
   pre: nanoid(),
   all: nanoid(),
+  sep: nanoid()
 });
 
 const isSingleRippleware = ([r, ...extras]) =>
@@ -30,13 +31,13 @@ const transforms = Object.freeze({
   identity: () => e => e,
   first: () => ([e]) => e,
   sep: () => ([...e]) => [].concat(...e),
-  mix: () => ([...e]) => e
-    .reduce(
+  mix: () => ([...e]) =>
+    e.reduce(
       (arr, e) => {
         arr[0].push(e);
         return arr;
       },
-      [[]],
+      [[]]
     )
 });
 
@@ -44,7 +45,8 @@ const isNestedArray = e => e.reduce((r, e) => r || Array.isArray(e), false);
 
 const isMatcherDeclaration = e => typeCheck("[(Function|String,Function)]", e);
 
-const isAggregateIndexDeclaration = e => typeCheck("[[RegExp{source:String}]]", e);
+const isAggregateIndexDeclaration = e =>
+  typeCheck("[[RegExp{source:String}]]", e);
 
 const match = (params, arg, meta) => [
   (e, ...extras) => {
@@ -65,19 +67,21 @@ const match = (params, arg, meta) => [
   meta
 ];
 
-const aggregate = (params, arg, meta) => [
-  dataIn => params.map(p => p.map(q => expression(q, dataIn))),
-  arg,
-  meta,
-];
+const aggregate = (params, arg, meta, secret) => {
+  return [
+    dataIn => params.map(p => p.map(q => expression(q, dataIn))),
+    arg,
+    secret === secrets.sep ? params.map(() => meta) : meta
+  ];
+};
 
-const shouldIndex = (param, arg, meta) => {
+const shouldIndex = (param, arg, meta, secret) => {
   if (Array.isArray(param)) {
     if (isNestedArray(param)) {
       if (isMatcherDeclaration(param)) {
         return match(param, arg, meta);
       } else if (isAggregateIndexDeclaration(param)) {
-        return aggregate(param, arg, meta); 
+        return aggregate(param, arg, meta, secret);
       }
       throw new Error(
         "Arrays of middleware must only be of a single-dimension."
@@ -93,14 +97,14 @@ const shouldIndex = (param, arg, meta) => {
         ")"
       );
       const [p] = param;
-      return shouldIndex(p, arg, meta);
+      return shouldIndex(p, arg, meta, secret);
     }
     return [param, param.map(() => arg), param.map(() => meta)];
   }
   return [param, arg, meta];
 };
 
-const ensureIndexed = ([...params], [...args], [...metas]) => {
+const ensureIndexed = ([...params], [...args], [...metas], secret) => {
   const nextParams = [];
   const nextArgs = [];
   const nextMetas = [];
@@ -110,7 +114,12 @@ const ensureIndexed = ([...params], [...args], [...metas]) => {
     const arg = args[i];
     const meta = metas[i];
 
-    const [nextParam, nextArg, nextMeta] = shouldIndex(param, arg, meta);
+    const [nextParam, nextArg, nextMeta] = shouldIndex(
+      param,
+      arg,
+      meta,
+      secret
+    );
 
     nextParams.push(nextParam);
     nextArgs.push(isRippleware(param) ? [nextArg] : nextArg);
@@ -125,12 +134,12 @@ const propagate = ([...params], [...args], [...metas], secret) => {
     const [m] = metas;
     return [[r], [args], [m], transforms.first()];
   } else if (params.length === args.length) {
-    return ensureIndexed(params, args, metas);
+    return ensureIndexed(params, args, metas, secret);
   } else if (params.length > args.length) {
     const p = [...Array(params.length - args.length)];
-    return ensureIndexed(params, [...args, ...p], [...metas, ...p]);
+    return ensureIndexed(params, [...args, ...p], [...metas, ...p], secret);
   } else if (secret === secrets.all) {
-    return ensureIndexed(params, args, metas);
+    return ensureIndexed(params, args, metas, secret);
   }
   throw new Error(
     `There is no viable way to propagate between ${params} and ${args}.`
@@ -154,10 +163,7 @@ const execute = (param, arg, meta, { ...hooks }) => {
         results.map(([_, meta]) => meta)
       ]);
     } else if (typeCheck("RegExp{source:String}", param)) {
-      return Promise.resolve([
-        expression(param, arg),
-        meta
-      ]);
+      return Promise.resolve([expression(param, arg), meta]);
     } else if (typeCheck("Function", param)) {
       let metaOut = meta;
       const extraHooks = {
@@ -204,21 +210,21 @@ const executeStage = (
       nextTransform(results.map(([_, meta]) => meta))
     ]);
 
-const prepareChannel = ([...params], [...dataFromLastStage], [...metasFromLastStage], secret) => {
+const prepareChannel = (
+  [...params],
+  [...dataFromLastStage],
+  [...metasFromLastStage],
+  secret
+) => {
   if (secret === secrets.all) {
     return [
       params,
       dataFromLastStage.map(() => dataFromLastStage),
       metasFromLastStage.map(() => metasFromLastStage),
-      secret,
+      secret
     ];
   }
-  return [
-    params,
-    dataFromLastStage,
-    metasFromLastStage,
-    secret,
-  ];
+  return [params, dataFromLastStage, metasFromLastStage, secret];
 };
 
 const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
@@ -231,8 +237,8 @@ const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
             params,
             dataFromLastStage,
             metasFromLastStage,
-            secret,
-          ),
+            secret
+          )
         );
         const topology = Object.freeze([i, length]);
         return executeStage(
@@ -267,9 +273,9 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
-const evaluateArgs = (args, { ...hooks }) => args.map(
-  (arg) => {
-    if (typeCheck('(String, Function)', arg)) {
+const evaluateArgs = (args, { ...hooks }) =>
+  args.map(arg => {
+    if (typeCheck("(String, Function)", arg)) {
       const [secret, fn] = arg;
       if (secret === secrets.pre) {
         return fn({ ...hooks });
@@ -278,33 +284,20 @@ const evaluateArgs = (args, { ...hooks }) => args.map(
     return arg;
   });
 
-const evaluateParams = (params, { ...hooks }) => params
-  .map(
-    ([id, args, transform, secret]) => {
-      if (typeCheck('String', secret) && secret === secrets.pre) {
-        return [
-          id,
-          args.map(fn => fn({ ...hooks })),
-          transform,
-          secret,
-        ];
+const evaluateParams = (params, { ...hooks }) =>
+  params
+    .map(([id, args, transform, secret]) => {
+      if (typeCheck("String", secret) && secret === secrets.pre) {
+        return [id, args.map(fn => fn({ ...hooks })), transform, secret];
       }
-      return [
-        id,
-        args,
-        transform,
-        secret,
-      ];
-    },
-  )
-  .map(
-    ([ id, args, transform, secret ]) => [
+      return [id, args, transform, secret];
+    })
+    .map(([id, args, transform, secret]) => [
       id,
       evaluateArgs(args, { ...hooks }),
       transform,
-      secret,
-    ],
-  );
+      secret
+    ]);
 
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
@@ -326,8 +319,8 @@ const compose = (...args) => {
 
     const { useState } = extraHooks;
 
-    const [evaluatedParams] = useState(
-      () => evaluateParams(params, extraHooks),
+    const [evaluatedParams] = useState(() =>
+      evaluateParams(params, extraHooks)
     );
 
     return executeParams(id, extraHooks, evaluatedParams, args, meta);
@@ -365,11 +358,11 @@ const compose = (...args) => {
     return r;
   };
   r.sep = (...args) => {
-    params.push([nanoid(), args, transforms.sep(), null]);
+    params.push([nanoid(), args, transforms.sep(), secrets.sep]);
     return r;
   };
   r.pre = (...args) => {
-    if (typeCheck('[Function]', args)) {
+    if (typeCheck("[Function]", args)) {
       params.push([nanoid(), args, transforms.identity(), secrets.pre]);
       return r;
     }
@@ -380,7 +373,12 @@ const compose = (...args) => {
     return r;
   };
   r.all = (...args) => {
-    params.push([nanoid(), args, args.length === 1  ? transforms.sep() : transforms.identity(), secrets.all]);
+    params.push([
+      nanoid(),
+      args,
+      args.length === 1 ? transforms.sep() : transforms.identity(),
+      secrets.all
+    ]);
     return r;
   };
   return r;
@@ -399,11 +397,11 @@ export const justOnce = (...args) => (input, { useState, useGlobal }) => {
 export const noop = () => input => input;
 
 export const pre = (...args) => {
-  if (typeCheck('(Function)', args)) {
+  if (typeCheck("(Function)", args)) {
     const [fn] = args;
     return [secrets.pre, fn];
   }
-  throw new Error('Only a single function may be passed to the pre() helper.');
+  throw new Error("Only a single function may be passed to the pre() helper.");
 };
 
 export default compose;
