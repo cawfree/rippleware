@@ -1,5 +1,6 @@
 import "@babel/polyfill";
 
+import { typeCheck } from "type-check";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
@@ -618,4 +619,35 @@ it("should broadcast singular meta across multiple channels", async () => {
   );
 
   expect(trainingResults).toEqual([{ cnt: 0 }, { cnt: 0 }]);
+});
+
+it("should be possible to define our own custom typeCheck implementation", async () => {
+
+  const customTypeCheck = () => (...args) => typeCheck(
+    ...[
+      ...args,
+      {
+        customTypes: {
+          Even: {
+            typeOf: 'Number',
+            validate: function(x) {
+              return x % 2 === 0;
+            }
+          }
+        }
+      },
+    ],
+  );
+
+  const app = compose(buildStore, customTypeCheck())
+    .use([
+      ['Even', () => 'Even number!'],
+      ['*', () => 'Something else!'],
+    ]);
+
+  expect(await app(2))
+    .toEqual(['Even number!']);
+  expect(await app(1))
+    .toEqual(['Something else!']);
+
 });

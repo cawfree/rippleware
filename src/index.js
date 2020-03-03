@@ -1,6 +1,4 @@
 import jsonpath from "jsonpath";
-import deepEqual from "deep-equal";
-import klona from "klona";
 import nanoid from "nanoid";
 import { typeCheck } from "type-check";
 
@@ -48,7 +46,7 @@ const isMatcherDeclaration = e => typeCheck("[(Function|String,Function)]", e);
 const isAggregateIndexDeclaration = e =>
   typeCheck("[[RegExp{source:String}]]", e);
 
-const match = (params, arg, meta) => [
+const match = (typeCheckImpl, params, arg, meta) => [
   (e, ...extras) => {
     for (let i = 0; i < params.length; i += 1) {
       const [shouldMatch, exec] = params[i];
@@ -56,7 +54,7 @@ const match = (params, arg, meta) => [
         return exec(e, ...extras);
       } else if (
         typeCheck("String", shouldMatch) &&
-        typeCheck(shouldMatch, arg)
+        typeCheckImpl(shouldMatch, arg)
       ) {
         return exec(e, ...extras);
       }
@@ -75,11 +73,11 @@ const aggregate = (params, arg, meta, secret) => {
   ];
 };
 
-const shouldIndex = (param, arg, meta, secret) => {
+const shouldIndex = (typeCheckImpl, param, arg, meta, secret) => {
   if (Array.isArray(param)) {
     if (isNestedArray(param)) {
       if (isMatcherDeclaration(param)) {
-        return match(param, arg, meta);
+        return match(typeCheckImpl, param, arg, meta);
       } else if (isAggregateIndexDeclaration(param)) {
         return aggregate(param, arg, meta, secret);
       }
@@ -97,14 +95,14 @@ const shouldIndex = (param, arg, meta, secret) => {
         ")"
       );
       const [p] = param;
-      return shouldIndex(p, arg, meta, secret);
+      return shouldIndex(typeCheckImpl, p, arg, meta, secret);
     }
     return [param, param.map(() => arg), param.map(() => meta)];
   }
   return [param, arg, meta];
 };
 
-const ensureIndexed = ([...params], [...args], [...metas], secret) => {
+const ensureIndexed = (typeCheckImpl, [...params], [...args], [...metas], secret) => {
   const nextParams = [];
   const nextArgs = [];
   const nextMetas = [];
@@ -115,6 +113,7 @@ const ensureIndexed = ([...params], [...args], [...metas], secret) => {
     const meta = metas[i];
 
     const [nextParam, nextArg, nextMeta] = shouldIndex(
+      typeCheckImpl,
       param,
       arg,
       meta,
@@ -128,19 +127,19 @@ const ensureIndexed = ([...params], [...args], [...metas], secret) => {
   return [nextParams, nextArgs, nextMetas, transforms.identity()];
 };
 
-const propagate = ([...params], [...args], [...metas], secret) => {
+const propagate = (typeCheckImpl, [...params], [...args], [...metas], secret) => {
   if (isSingleRippleware(params)) {
     const [r] = params;
     const [m] = metas;
     return [[r], [args], [m], transforms.first()];
   } else if (params.length === args.length) {
-    return ensureIndexed(params, args, metas, secret);
+    return ensureIndexed(typeCheckImpl, params, args, metas, secret);
   } else if (params.length > args.length) {
     const p = [...Array(params.length - args.length)];
     const m = p.map(() => (args.length === 1 ? metas[0] : undefined));
-    return ensureIndexed(params, [...args, ...p], [...metas, ...m], secret);
+    return ensureIndexed(typeCheckImpl, params, [...args, ...p], [...metas, ...m], secret);
   } else if (secret === secrets.all) {
-    return ensureIndexed(params, args, metas, secret);
+    return ensureIndexed(typeCheckImpl, params, args, metas, secret);
   }
   throw new Error(
     `There is no viable way to propagate between ${params} and ${args}.`
@@ -242,12 +241,13 @@ const prepareChannel = (
   ];
 };
 
-const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
+const executeParams = (id, typeCheckImpl, { ...hooks }, [...params], [...args], [...metas]) =>
   params.reduce(
     (p, [stageId, [...params], globalTransform, secret], i, orig) =>
       p.then(([[...dataFromLastStage], [...metasFromLastStage]]) => {
         const { length } = orig;
         const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(
+          typeCheckImpl,
           ...prepareChannel(
             params,
             dataFromLastStage,
@@ -280,10 +280,12 @@ const throwOnInvokeThunk = name => () => {
 };
 
 const parseConstructor = (...args) => {
-  if (typeCheck("(Function)", args)) {
+  if (typeCheck('(Function, Function)', args)) {
     return args;
+  } else if (typeCheck("(Function)", args)) {
+    return [...args, typeCheck];
   } else if (args.length === 0) {
-    return [() => undefined];
+    return [() => undefined, typeCheck];
   }
   throw new Error("Unsuitable arguments.");
 };
@@ -321,7 +323,7 @@ const compose = (...args) => {
   const params = [];
   const id = nanoid();
 
-  const [globalState] = parseConstructor(...args);
+  const [globalState, typeCheckImpl] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
   const exec = ({ global, meta }, ...args) => {
@@ -338,7 +340,7 @@ const compose = (...args) => {
       evaluateParams(params, extraHooks)
     );
 
-    return executeParams(id, extraHooks, evaluatedParams, args, meta);
+    return executeParams(id, typeCheckImpl, extraHooks, evaluatedParams, args, meta);
   };
 
   const global = globalState();

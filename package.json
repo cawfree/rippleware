@@ -38,7 +38,6 @@
   "dependencies": {
     "deep-equal": "^2.0.1",
     "jsonpath": "^1.0.2",
-    "klona": "^1.1.1",
     "nanoid": "^2.1.11",
     "type-check": "^0.3.2"
   }
