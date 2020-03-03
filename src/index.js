@@ -331,7 +331,8 @@ const compose = (...args) => {
 
     const extraHooks = {
       ...hooks,
-      useGlobal: () => global
+      useGlobal: () => global,
+      useMatcher: () => typeCheckImpl,
     };
 
     const { useState } = extraHooks;
