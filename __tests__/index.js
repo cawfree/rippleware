@@ -48,22 +48,6 @@ const imdb = Object.freeze([
   }
 ]);
 
-const customTypeCheck = () => (...args) => typeCheck(
-  ...[
-    ...args,
-    {
-      customTypes: {
-        Even: {
-          typeOf: 'Number',
-          validate: function(x) {
-            return x % 2 === 0;
-          }
-        }
-      }
-    },
-  ],
-);
-
 it("should be possible to define a matcher array", async () => {
   const app = compose().use([
     ["Number", () => "This is a number."],
@@ -635,29 +619,4 @@ it("should broadcast singular meta across multiple channels", async () => {
   );
 
   expect(trainingResults).toEqual([{ cnt: 0 }, { cnt: 0 }]);
-});
-
-it("should be possible to define our own custom typeCheck implementation", async () => { 
-
-  const app = compose(buildStore, customTypeCheck())
-    .use([
-      ['Even', () => 'Even number!'],
-      ['*', () => 'Something else!'],
-    ]);
-
-  expect(await app(2))
-    .toEqual(['Even number!']);
-  expect(await app(1))
-    .toEqual(['Something else!']);
-
-});
-
-it("should expose a hook to permit interaction using the context-specific matcher", async () => {
-  const app = compose(buildStore, customTypeCheck())
-    .use(
-      (e, { useMatcher }) => useMatcher()('Even', e),
-    );
-  
-  expect(await app(2)).toEqual([true]);
-  expect(await app(1)).toEqual([false]);
 });
