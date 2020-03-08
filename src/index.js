@@ -19,8 +19,11 @@ const secrets = Object.freeze({
   internal: nanoid(),
   pre: nanoid(),
   all: nanoid(),
-  sep: nanoid()
+  sep: nanoid(),
+  export: nanoid(),
 });
+
+export const REMOVE_THIS = secrets.export;
 
 const isSingleRippleware = ([r, ...extras]) =>
   extras.length === 0 && isRippleware(r);
@@ -289,20 +292,23 @@ const evaluateArgs = (args, { ...hooks }) =>
     return arg;
   });
 
-const evaluateParams = (params, { ...hooks }) =>
-  params
-    .map(([id, args, transform, secret]) => {
-      if (typeCheck("String", secret) && secret === secrets.pre) {
-        return [id, args.map(fn => fn({ ...hooks })), transform, secret];
-      }
-      return [id, args, transform, secret];
-    })
-    .map(([id, args, transform, secret]) => [
-      id,
-      evaluateArgs(args, { ...hooks }),
-      transform,
-      secret
-    ]);
+const evaluateParams = (params, { ...hooks }) => Promise
+  .resolve()
+  .then(
+    () => params
+      .map(([id, args, transform, secret]) => {
+        if (typeCheck("String", secret) && secret === secrets.pre) {
+          return [id, args.map(fn => fn({ ...hooks })), transform, secret];
+        }
+        return [id, args, transform, secret];
+      })
+      .map(([id, args, transform, secret]) => [
+        id,
+        evaluateArgs(args, { ...hooks }),
+        transform,
+        secret
+      ])
+  );
 
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
@@ -325,23 +331,51 @@ const compose = (...args) => {
   const [globalState, chainReceiver] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  const exec = ({ global, receiver, meta }, ...args) => {
-    resetHooks();
+  const exec = ({ global, receiver, meta }, ...args) => Promise
+    .resolve()
+    .then(
+      () => {
+        resetHooks();
+    
+        const extraHooks = {
+          ...hooks,
+          useGlobal: () => global,
+          useReceiver: () => receiver,
+        }; 
 
-    const extraHooks = {
-      ...hooks,
-      useGlobal: () => global,
-      useReceiver: () => receiver,
-    };
+        return extraHooks;
+      }
+    )
+    .then(
+      async ({ ...extraHooks }) => {
+        const { useState } = extraHooks;
+        const [evaluatedParams, setEvaluatedParams] = useState(null);
 
-    const { useState } = extraHooks;
+        if (!evaluatedParams) {
+          return evaluateParams(params, extraHooks)
+            .then(
+              (nextParams) => {
+                setEvaluatedParams(nextParams);
+                return [nextParams, extraHooks];
+              },
+            );
+        }
+        return [evaluatedParams, extraHooks]; 
+      },
+    )
+    .then(
+      ([evaluatedParams, extraHooks]) => {
+        const shouldEvaluate = typeCheck('(String)', args) && args[0] === secrets.export;
 
-    const [evaluatedParams] = useState(() =>
-      evaluateParams(params, extraHooks)
+        if (!shouldEvaluate) {
+          return executeParams(id, extraHooks, evaluatedParams, args, meta);
+        }
+
+        // XXX: Due to super's meta skip.
+        return Promise
+          .resolve([evaluatedParams]);
+      },
     );
-
-    return executeParams(id, extraHooks, evaluatedParams, args, meta);
-  };
 
   const global = globalState();
   const receiver = chainReceiver;

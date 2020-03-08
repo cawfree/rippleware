@@ -4,7 +4,7 @@ import { typeCheck } from "type-check";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { isRippleware, justOnce, noop, pre } from "../src";
+import compose, { isRippleware, justOnce, noop, pre, REMOVE_THIS } from "../src";
 
 const addOne = () => input => input + 1;
 
@@ -634,5 +634,5 @@ it("should be possible to retrieve the raw composition of rippleware", async () 
         ),
     );
 
-  console.log(await app(true, false));
+  console.log(await app(REMOVE_THIS));
 });
