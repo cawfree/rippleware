@@ -1,6 +1,7 @@
 import jsonpath from "jsonpath";
 import nanoid from "nanoid";
 import { typeCheck } from "type-check";
+import deepEquals from "deep-equal";
 
 import createHooks from "./createHooks";
 
@@ -294,21 +295,20 @@ const evaluateArgs = (args, { ...hooks }) =>
   });
 
 const evaluateParams = (params, { ...hooks }) =>
-  Promise.resolve()
-    .then(() =>
-      params
-        .map(([args, transform, secret]) => {
-          if (typeCheck("String", secret) && secret === secrets.pre) {
-            return [args.map(fn => fn({ ...hooks })), transform, secret];
-          }
-          return [args, transform, secret];
-        })
-        .map(([args, transform, secret]) => [
-          evaluateArgs(args, { ...hooks }),
-          transform,
-          secret
-        ])
-    ); 
+  Promise.resolve().then(() =>
+    params
+      .map(([args, transform, secret]) => {
+        if (typeCheck("String", secret) && secret === secrets.pre) {
+          return [args.map(fn => fn({ ...hooks })), transform, secret];
+        }
+        return [args, transform, secret];
+      })
+      .map(([args, transform, secret]) => [
+        evaluateArgs(args, { ...hooks }),
+        transform,
+        secret
+      ])
+  );
 
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
@@ -327,7 +327,18 @@ const parseConstructor = (...args) => {
 };
 
 const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) =>
-  shouldReceive({ ...hooks }, nextParams);
+  Promise.resolve()
+    .then(() => shouldReceive({ ...hooks }, nextParams))
+    .then(computedParams => {
+      if (!deepEquals(nextParams, computedParams)) {
+        return evaluateParams(computedParams, {
+          ...hooks
+        }).then(evaluatedParams =>
+          delegateToReceiver(shouldReceive, { ...hooks }, evaluatedParams)
+        );
+      }
+      return computedParams;
+    });
 
 const compose = (...args) => {
   const params = [];
@@ -364,16 +375,15 @@ const compose = (...args) => {
               }
               return nextParams;
             })
-            .then(
-              paramsWithoutIds =>
-                paramsWithoutIds.map(([args, transform, secret]) => [
-                  typeCheck("Function", useKey())
-                    ? useKey()({ ...hooks }, ...args)
-                    : nanoid(),
-                  args,
-                  transform,
-                  secret
-                ]),
+            .then(paramsWithoutIds =>
+              paramsWithoutIds.map(([args, transform, secret]) => [
+                typeCheck("Function", useKey())
+                  ? useKey()({ ...hooks }, ...args)
+                  : nanoid(),
+                args,
+                transform,
+                secret
+              ])
             )
             .then(nextParams => {
               setEvaluatedParams(nextParams);

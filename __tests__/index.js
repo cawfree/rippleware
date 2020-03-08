@@ -622,9 +622,32 @@ it("should broadcast singular meta across multiple channels", async () => {
 });
 
 it("should be possible to define a custom identifier generator", async () => {
-  const someReceiver = (hooks, args) => args;
+  // XXX: Prevent recursively appending functions.
+  let didAdd = false;
+
+  const someReceiver = (hooks, args) => {
+    const [[[a, b], ...extras]] = args;
+    if (!didAdd && typeCheck("Function", a) && typeCheck("Function", b)) {
+      didAdd = true;
+      return [
+        [
+          [
+            pre(({ useGlobal }) => () =>
+              useGlobal()
+                .getState()
+                .get("cnt")
+            ),
+            b => b
+          ],
+          ...extras
+        ]
+      ];
+    }
+    return args;
+  };
   const someCustomId = ({ useGlobal }, ...args) => "some-custom-id";
   const someOtherId = () => "some-other-id";
+
   const app = compose(buildStore, someReceiver, someCustomId).use(
     compose().use(
       compose(buildStore, someReceiver, someOtherId).use(
@@ -634,5 +657,5 @@ it("should be possible to define a custom identifier generator", async () => {
     )
   );
 
-  expect(await app(true, false)).toEqual([false, true]);
+  expect(await app(true, false)).toEqual([0, false]);
 });
