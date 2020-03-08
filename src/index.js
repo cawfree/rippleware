@@ -295,10 +295,21 @@ const evaluateArgs = (args, { ...hooks }) =>
     return arg;
   });
 
-const evaluateParams = (params, { ...hooks }) => Promise
+const evaluateParams = (generateKey, params, { ...hooks }) => Promise
   .resolve()
   .then(
     () => params
+      .map(
+        ([args, transform, secret]) => [
+          nanoid(),
+          args,
+          transform,
+          secret,
+        ],
+      ),
+  )
+  .then(
+    params => params
       .map(([id, args, transform, secret]) => {
         if (typeCheck("String", secret) && secret === secrets.pre) {
           return [id, args.map(fn => fn({ ...hooks })), transform, secret];
@@ -313,39 +324,35 @@ const evaluateParams = (params, { ...hooks }) => Promise
       ])
   );
 
-const recursiveEvaluateParams = (params, { ...hooks }) => {
-  return params
-    .reduce(
-      (p, [id, args, transform, secret]) => p
-        .then(
-          ([...lastParams]) => Promise
-            .all(
-              args.map(
-                (arg) => {
-                  if (isRippleware(arg)) {
-                    return executeNestedRippleware(arg, hooks, undefined, secrets.export);
-                  }
-                  return Promise.resolve(arg);
-                },
-              ),
-            )
-            .then(
-              evaluatedArgs => [
-                ...lastParams,
-                [
-                  id,
-                  evaluatedArgs,
-                  transform,
-                  secret,
-                ],
-              ],
+const recursiveEvaluateParams = (params, { ...hooks }) => params
+  .reduce(
+    (p, [id, args, transform, secret]) => p
+      .then(
+        ([...lastParams]) => Promise
+          .all(
+            args.map(
+              (arg) => {
+                if (isRippleware(arg)) {
+                  return executeNestedRippleware(arg, hooks, undefined, secrets.export);
+                }
+                return Promise.resolve(arg);
+              },
             ),
-        ),
-      Promise.resolve([]),
-    );
-  // TODO: verify against this
-  return params;
-};
+          )
+          .then(
+            evaluatedArgs => [
+              ...lastParams,
+              [
+                id,
+                evaluatedArgs,
+                transform,
+                secret,
+              ],
+            ],
+          ),
+      ),
+    Promise.resolve([]),
+  );
 
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
@@ -365,7 +372,6 @@ const parseConstructor = (...args) => {
 
 const compose = (...args) => {
   const params = [];
-  const id = nanoid();
 
   const [globalState, chainReceiver, generateKey] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
@@ -387,11 +393,11 @@ const compose = (...args) => {
       )
       .then(
         async ({ ...extraHooks }) => {
-          const { useState } = extraHooks;
+          const { useState, useKey } = extraHooks;
           const [evaluatedParams, setEvaluatedParams] = useState(null);
 
           if (!evaluatedParams) {
-            return evaluateParams(params, extraHooks)
+            return evaluateParams(useKey, params, extraHooks)
               .then(
                 (nextParams) => {
                   setEvaluatedParams(nextParams);
@@ -449,27 +455,26 @@ const compose = (...args) => {
   };
 
   r.use = (...args) => {
-    params.push([nanoid(), args, transforms.identity(), null]);
+    params.push([args, transforms.identity(), null]);
     return r;
   };
   r.sep = (...args) => {
-    params.push([nanoid(), args, transforms.sep(), secrets.sep]);
+    params.push([args, transforms.sep(), secrets.sep]);
     return r;
   };
   r.pre = (...args) => {
     if (typeCheck("[Function]", args)) {
-      params.push([nanoid(), args, transforms.identity(), secrets.pre]);
+      params.push([args, transforms.identity(), secrets.pre]);
       return r;
     }
     throw new Error("Pre-execution stages must specify a single function.");
   };
   r.mix = (...args) => {
-    params.push([nanoid(), args, transforms.mix(), null]);
+    params.push([args, transforms.mix(), null]);
     return r;
   };
   r.all = (...args) => {
     params.push([
-      nanoid(),
       args,
       args.length === 1 ? transforms.sep() : transforms.identity(),
       secrets.all
