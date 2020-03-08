@@ -149,10 +149,11 @@ const propagate = ([...params], [...args], [...metas], secret) => {
 };
 
 const executeNestedRippleware = (app, hooks, meta, ...args) => {
-  const { useGlobal, useReceiver } = hooks;
+  const { useGlobal, useReceiver, useKey } = hooks;
   const opts = Object.freeze({
     useGlobal,
     useReceiver,
+    useKey,
     meta: [meta]
   });
   return app(secrets.internal, opts, ...args);
@@ -196,7 +197,6 @@ const execute = (param, arg, meta, { ...hooks }) => {
 };
 
 const executeStage = (
-  rootId,
   stageId,
   nextTransform,
   [...params],
@@ -248,7 +248,7 @@ const prepareChannel = (
   ];
 };
 
-const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
+const executeParams = ({ ...hooks }, [...params], [...args], [...metas]) =>
   params.reduce(
     (p, [stageId, [...params], globalTransform, secret], i, orig) =>
       p.then(([[...dataFromLastStage], [...metasFromLastStage]]) => {
@@ -263,7 +263,6 @@ const executeParams = (id, { ...hooks }, [...params], [...args], [...metas]) =>
         );
         const topology = Object.freeze([i, length]);
         return executeStage(
-          id,
           stageId,
           nextTransform,
           [...nextParams],
@@ -352,12 +351,14 @@ const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
 
 const parseConstructor = (...args) => {
-  if (typeCheck('(Function, Function)', args)) {
+  if (typeCheck('(Function, Function, Function)', args)) {
     return args;
-  } else if (typeCheck('(Function)', args)) {
+  } else if (typeCheck('(Function, Function)', args)) {
     return [...args, null];
+  } else if (typeCheck('(Function)', args)) {
+    return [...args, null, null];
   } else if (args.length === 0) {
-    return [() => undefined, null];
+    return [() => undefined, null, null];
   }
   throw new Error("Unsuitable arguments.");
 };
@@ -366,10 +367,10 @@ const compose = (...args) => {
   const params = [];
   const id = nanoid();
 
-  const [globalState, chainReceiver] = parseConstructor(...args);
+  const [globalState, chainReceiver, generateKey] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  const exec = ({ global, receiver, meta }, ...args) => {
+  const exec = ({ global, receiver, keygen, meta }, ...args) => {
     const shouldEvaluate = typeCheck('(String)', args) && args[0] === secrets.export;
     return Promise
       .resolve()
@@ -380,6 +381,7 @@ const compose = (...args) => {
             ...hooks,
             useGlobal: () => global,
             useReceiver: () => receiver,
+            useKey: () => keygen,
           }; 
         }
       )
@@ -404,20 +406,20 @@ const compose = (...args) => {
       .then(
         ([evaluatedParams, extraHooks]) => {
           if (!shouldEvaluate) {
-            return executeParams(id, extraHooks, evaluatedParams, args, meta);
+            return executeParams(extraHooks, evaluatedParams, args, meta);
           }
           // XXX: Due to super's meta skip.
           return Promise
             .resolve()
             .then(() => recursiveEvaluateParams(evaluatedParams, extraHooks));
-            //.then(result => [result]);
         },
       )
   };
 
   const global = globalState();
   const receiver = chainReceiver;
-
+  const keygen = generateKey;
+  
   const r = function(...args) {
     r.use = throwOnInvokeThunk("use");
     r.sep = throwOnInvokeThunk("sep");
@@ -427,16 +429,21 @@ const compose = (...args) => {
 
     if (isInternalConstructor(...args)) {
       const [secret, opts, ...extras] = args;
-      if (typeCheck("{useGlobal:Function,useReceiver:Function,...}", opts)) {
-        const { useGlobal, useReceiver, meta } = opts;
-        return exec({ global: global || useGlobal(), receiver: receiver || useReceiver(), meta }, ...extras);
+      if (typeCheck("{useGlobal:Function,useReceiver:Function,useKey:Function,...}", opts)) {
+        const { useGlobal, useReceiver, useKey, meta } = opts;
+        return exec({
+          global: global || useGlobal(),
+          receiver: receiver || useReceiver(),
+          keygen: keygen || useKey(),
+          meta,
+        }, ...extras);
       }
       throw new Error(
         `Encountered an internal constructor which specified an incorrect options argument.`
       );
     }
 
-    return exec({ global, receiver, meta: [] }, ...args)
+    return exec({ global, receiver, keygen, meta: [] }, ...args)
       // XXX: Drop meta information for top-level callers.
       .then(transforms.first())
   };
