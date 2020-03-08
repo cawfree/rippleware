@@ -623,7 +623,9 @@ it("should broadcast singular meta across multiple channels", async () => {
 
 it("should be possible to define a custom identifier generator", async () => {
   const someReceiver = (hooks, args) => args;
-  const someCustomId = () => "some-custom-id";
+  const someCustomId = ({ useGlobal }) => {
+    return "some-custom-id";
+  };
   const someOtherId = () => "some-other-id";
   const app = compose(buildStore, someReceiver, someCustomId).use(
     compose().use(

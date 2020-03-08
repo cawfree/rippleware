@@ -297,7 +297,9 @@ const evaluateParams = (generateKey, params, { ...hooks }) =>
   Promise.resolve()
     .then(() =>
       params.map(([args, transform, secret]) => [
-        typeCheck("Function", generateKey) ? generateKey(...args) : nanoid(),
+        typeCheck("Function", generateKey)
+          ? generateKey({ ...hooks }, ...args)
+          : nanoid(),
         args,
         transform,
         secret
@@ -335,10 +337,8 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
-const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) => shouldReceive(
-  { ...hooks },
-  nextParams,
-);
+const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) =>
+  shouldReceive({ ...hooks }, nextParams);
 
 const compose = (...args) => {
   const params = [];
@@ -367,7 +367,11 @@ const compose = (...args) => {
           return evaluateParams(useKey(), params, extraHooks)
             .then(nextParams => {
               if (typeCheck("Function", useReceiver())) {
-                return delegateToReceiver(useReceiver(), extraHooks, nextParams);
+                return delegateToReceiver(
+                  useReceiver(),
+                  extraHooks,
+                  nextParams
+                );
               }
               return nextParams;
             })
