@@ -335,9 +335,10 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
-const delegateToReceiver = (shouldReceive, nextParams) => {
-  return shouldReceive(nextParams);
-};
+const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) => shouldReceive(
+  { ...hooks },
+  nextParams,
+);
 
 const compose = (...args) => {
   const params = [];
@@ -366,7 +367,7 @@ const compose = (...args) => {
           return evaluateParams(useKey(), params, extraHooks)
             .then(nextParams => {
               if (typeCheck("Function", useReceiver())) {
-                return delegateToReceiver(useReceiver(), nextParams);
+                return delegateToReceiver(useReceiver(), extraHooks, nextParams);
               }
               return nextParams;
             })
