@@ -296,6 +296,20 @@ const evaluateArgs = (args, { ...hooks }) =>
 const evaluateParams = (generateKey, params, { ...hooks }) =>
   Promise.resolve()
     .then(() =>
+      params
+        .map(([args, transform, secret]) => {
+          if (typeCheck("String", secret) && secret === secrets.pre) {
+            return [args.map(fn => fn({ ...hooks })), transform, secret];
+          }
+          return [args, transform, secret];
+        })
+        .map(([args, transform, secret]) => [
+          evaluateArgs(args, { ...hooks }),
+          transform,
+          secret
+        ])
+    )
+    .then(params =>
       params.map(([args, transform, secret]) => [
         typeCheck("Function", generateKey)
           ? generateKey({ ...hooks }, ...args)
@@ -304,21 +318,6 @@ const evaluateParams = (generateKey, params, { ...hooks }) =>
         transform,
         secret
       ])
-    )
-    .then(params =>
-      params
-        .map(([id, args, transform, secret]) => {
-          if (typeCheck("String", secret) && secret === secrets.pre) {
-            return [id, args.map(fn => fn({ ...hooks })), transform, secret];
-          }
-          return [id, args, transform, secret];
-        })
-        .map(([id, args, transform, secret]) => [
-          id,
-          evaluateArgs(args, { ...hooks }),
-          transform,
-          secret
-        ])
     );
 
 const isInternalConstructor = (maybeSecret, ...args) =>
