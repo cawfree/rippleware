@@ -301,7 +301,7 @@ const evaluateParams = (generateKey, params, { ...hooks }) => Promise
     () => params
       .map(
         ([args, transform, secret]) => [
-          nanoid(),
+          typeCheck("Function", generateKey) ? generateKey(...args) : nanoid(),
           args,
           transform,
           secret,
@@ -397,7 +397,7 @@ const compose = (...args) => {
           const [evaluatedParams, setEvaluatedParams] = useState(null);
 
           if (!evaluatedParams) {
-            return evaluateParams(useKey, params, extraHooks)
+            return evaluateParams(useKey(), params, extraHooks)
               .then(
                 (nextParams) => {
                   setEvaluatedParams(nextParams);

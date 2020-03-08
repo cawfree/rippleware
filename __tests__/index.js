@@ -636,3 +636,22 @@ it("should be possible to retrieve the raw composition of rippleware", async () 
 
   console.log(JSON.stringify(await app(REMOVE_THIS)));
 });
+
+it("should be possible to define a custom identifier generator", async () => {
+  const someReceiver = () => null;
+  const someCustomId = () => 'some-custom-id';
+  const someOtherId = () => 'some-other-id';
+  const app = compose(buildStore, someReceiver, someCustomId)
+    .use(
+      compose()
+        .use(
+          compose(buildStore, someReceiver, someOtherId)
+            .use(
+              b => !b,
+              b => !b,
+            ),
+        ),
+    );
+
+  console.log(JSON.stringify(await app(REMOVE_THIS)));
+});
