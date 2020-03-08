@@ -324,36 +324,6 @@ const evaluateParams = (generateKey, params, { ...hooks }) => Promise
       ])
   );
 
-const recursiveEvaluateParams = (params, { ...hooks }) => params
-  .reduce(
-    (p, [id, args, transform, secret]) => p
-      .then(
-        ([...lastParams]) => Promise
-          .all(
-            args.map(
-              (arg) => {
-                if (isRippleware(arg)) {
-                  return executeNestedRippleware(arg, hooks, undefined, secrets.export);
-                }
-                return Promise.resolve(arg);
-              },
-            ),
-          )
-          .then(
-            evaluatedArgs => [
-              ...lastParams,
-              [
-                id,
-                evaluatedArgs,
-                transform,
-                secret,
-              ],
-            ],
-          ),
-      ),
-    Promise.resolve([]),
-  );
-
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
 
@@ -368,6 +338,10 @@ const parseConstructor = (...args) => {
     return [() => undefined, null, null];
   }
   throw new Error("Unsuitable arguments.");
+};
+
+const delegateToReceiver = (shouldReceive, nextParams) => {
+  return shouldReceive(nextParams);
 };
 
 const compose = (...args) => {
@@ -393,11 +367,22 @@ const compose = (...args) => {
       )
       .then(
         async ({ ...extraHooks }) => {
-          const { useState, useKey } = extraHooks;
+          const { useState, useKey, useReceiver } = extraHooks;
           const [evaluatedParams, setEvaluatedParams] = useState(null);
 
           if (!evaluatedParams) {
             return evaluateParams(useKey(), params, extraHooks)
+              .then(
+                (nextParams) => {
+                  if (typeCheck("Function", useReceiver())) {
+                    return delegateToReceiver(
+                      useReceiver(),
+                      nextParams,
+                    );
+                  }
+                  return nextParams;
+                },
+              )
               .then(
                 (nextParams) => {
                   setEvaluatedParams(nextParams);
@@ -405,7 +390,6 @@ const compose = (...args) => {
                 },
               );
           }
-
           return [evaluatedParams, extraHooks]; 
         },
       )
@@ -416,8 +400,7 @@ const compose = (...args) => {
           }
           // XXX: Due to super's meta skip.
           return Promise
-            .resolve()
-            .then(() => recursiveEvaluateParams(evaluatedParams, extraHooks));
+            .resolve([evaluatedParams]);
         },
       )
   };

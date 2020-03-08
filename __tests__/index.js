@@ -4,7 +4,7 @@ import { typeCheck } from "type-check";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { isRippleware, justOnce, noop, pre, REMOVE_THIS } from "../src";
+import compose, { isRippleware, justOnce, noop, pre } from "../src";
 
 const addOne = () => input => input + 1;
 
@@ -621,24 +621,8 @@ it("should broadcast singular meta across multiple channels", async () => {
   expect(trainingResults).toEqual([{ cnt: 0 }, { cnt: 0 }]);
 });
 
-it("should be possible to retrieve the raw composition of rippleware", async () => {
-  const app = compose()
-    .use(
-      compose()
-        .use(
-          compose()
-            .use(
-              b => !b,
-              b => !b,
-            ),
-        ),
-    );
-
-  console.log(JSON.stringify(await app(REMOVE_THIS)));
-});
-
 it("should be possible to define a custom identifier generator", async () => {
-  const someReceiver = () => null;
+  const someReceiver = e => e;
   const someCustomId = () => 'some-custom-id';
   const someOtherId = () => 'some-other-id';
   const app = compose(buildStore, someReceiver, someCustomId)
@@ -653,5 +637,5 @@ it("should be possible to define a custom identifier generator", async () => {
         ),
     );
 
-  console.log(JSON.stringify(await app(REMOVE_THIS)));
+  expect(await app(true, false)).toEqual([false, true]);
 });
