@@ -623,19 +623,16 @@ it("should broadcast singular meta across multiple channels", async () => {
 
 it("should be possible to define a custom identifier generator", async () => {
   const someReceiver = e => e;
-  const someCustomId = () => 'some-custom-id';
-  const someOtherId = () => 'some-other-id';
-  const app = compose(buildStore, someReceiver, someCustomId)
-    .use(
-      compose()
-        .use(
-          compose(buildStore, someReceiver, someOtherId)
-            .use(
-              b => !b,
-              b => !b,
-            ),
-        ),
-    );
+  const someCustomId = () => "some-custom-id";
+  const someOtherId = () => "some-other-id";
+  const app = compose(buildStore, someReceiver, someCustomId).use(
+    compose().use(
+      compose(buildStore, someReceiver, someOtherId).use(
+        b => !b,
+        b => !b
+      )
+    )
+  );
 
   expect(await app(true, false)).toEqual([false, true]);
 });

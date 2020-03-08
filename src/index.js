@@ -20,7 +20,7 @@ const secrets = Object.freeze({
   pre: nanoid(),
   all: nanoid(),
   sep: nanoid(),
-  export: nanoid(),
+  export: nanoid()
 });
 
 const isSingleRippleware = ([r, ...extras]) =>
@@ -293,44 +293,41 @@ const evaluateArgs = (args, { ...hooks }) =>
     return arg;
   });
 
-const evaluateParams = (generateKey, params, { ...hooks }) => Promise
-  .resolve()
-  .then(
-    () => params
-      .map(
-        ([args, transform, secret]) => [
-          typeCheck("Function", generateKey) ? generateKey(...args) : nanoid(),
-          args,
-          transform,
-          secret,
-        ],
-      ),
-  )
-  .then(
-    params => params
-      .map(([id, args, transform, secret]) => {
-        if (typeCheck("String", secret) && secret === secrets.pre) {
-          return [id, args.map(fn => fn({ ...hooks })), transform, secret];
-        }
-        return [id, args, transform, secret];
-      })
-      .map(([id, args, transform, secret]) => [
-        id,
-        evaluateArgs(args, { ...hooks }),
+const evaluateParams = (generateKey, params, { ...hooks }) =>
+  Promise.resolve()
+    .then(() =>
+      params.map(([args, transform, secret]) => [
+        typeCheck("Function", generateKey) ? generateKey(...args) : nanoid(),
+        args,
         transform,
         secret
       ])
-  );
+    )
+    .then(params =>
+      params
+        .map(([id, args, transform, secret]) => {
+          if (typeCheck("String", secret) && secret === secrets.pre) {
+            return [id, args.map(fn => fn({ ...hooks })), transform, secret];
+          }
+          return [id, args, transform, secret];
+        })
+        .map(([id, args, transform, secret]) => [
+          id,
+          evaluateArgs(args, { ...hooks }),
+          transform,
+          secret
+        ])
+    );
 
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
 
 const parseConstructor = (...args) => {
-  if (typeCheck('(Function, Function, Function)', args)) {
+  if (typeCheck("(Function, Function, Function)", args)) {
     return args;
-  } else if (typeCheck('(Function, Function)', args)) {
+  } else if (typeCheck("(Function, Function)", args)) {
     return [...args, null];
-  } else if (typeCheck('(Function)', args)) {
+  } else if (typeCheck("(Function)", args)) {
     return [...args, null, null];
   } else if (args.length === 0) {
     return [() => undefined, null, null];
@@ -349,64 +346,50 @@ const compose = (...args) => {
   const [hooks, resetHooks] = createHooks();
 
   const exec = ({ global, receiver, keygen, meta }, ...args) => {
-    const shouldEvaluate = typeCheck('(String)', args) && args[0] === secrets.export;
-    return Promise
-      .resolve()
-      .then(
-        () => {
-          resetHooks();
-          return {
-            ...hooks,
-            useGlobal: () => global,
-            useReceiver: () => receiver,
-            useKey: () => keygen,
-          }; 
-        }
-      )
-      .then(
-        async ({ ...extraHooks }) => {
-          const { useState, useKey, useReceiver } = extraHooks;
-          const [evaluatedParams, setEvaluatedParams] = useState(null);
+    const shouldEvaluate =
+      typeCheck("(String)", args) && args[0] === secrets.export;
+    return Promise.resolve()
+      .then(() => {
+        resetHooks();
+        return {
+          ...hooks,
+          useGlobal: () => global,
+          useReceiver: () => receiver,
+          useKey: () => keygen
+        };
+      })
+      .then(async ({ ...extraHooks }) => {
+        const { useState, useKey, useReceiver } = extraHooks;
+        const [evaluatedParams, setEvaluatedParams] = useState(null);
 
-          if (!evaluatedParams) {
-            return evaluateParams(useKey(), params, extraHooks)
-              .then(
-                (nextParams) => {
-                  if (typeCheck("Function", useReceiver())) {
-                    return delegateToReceiver(
-                      useReceiver(),
-                      nextParams,
-                    );
-                  }
-                  return nextParams;
-                },
-              )
-              .then(
-                (nextParams) => {
-                  setEvaluatedParams(nextParams);
-                  return [nextParams, extraHooks];
-                },
-              );
-          }
-          return [evaluatedParams, extraHooks]; 
-        },
-      )
-      .then(
-        ([evaluatedParams, extraHooks]) => {
-          if (!shouldEvaluate) {
-            return executeParams(extraHooks, evaluatedParams, args, meta);
-          }
-          // XXX: Due to super's meta skip.
-          return Promise
-            .resolve([evaluatedParams]);
-        },
-      )
+        if (!evaluatedParams) {
+          return evaluateParams(useKey(), params, extraHooks)
+            .then(nextParams => {
+              if (typeCheck("Function", useReceiver())) {
+                return delegateToReceiver(useReceiver(), nextParams);
+              }
+              return nextParams;
+            })
+            .then(nextParams => {
+              setEvaluatedParams(nextParams);
+              return [nextParams, extraHooks];
+            });
+        }
+        return [evaluatedParams, extraHooks];
+      })
+      .then(([evaluatedParams, extraHooks]) => {
+        if (!shouldEvaluate) {
+          return executeParams(extraHooks, evaluatedParams, args, meta);
+        }
+        // XXX: Due to super's meta skip.
+        return Promise.resolve([evaluatedParams]);
+      });
   };
 
   const global = globalState();
   const receiver = chainReceiver;
   const keygen = generateKey;
-  
+
   const r = function(...args) {
     r.use = throwOnInvokeThunk("use");
     r.sep = throwOnInvokeThunk("sep");
@@ -416,23 +399,33 @@ const compose = (...args) => {
 
     if (isInternalConstructor(...args)) {
       const [secret, opts, ...extras] = args;
-      if (typeCheck("{useGlobal:Function,useReceiver:Function,useKey:Function,...}", opts)) {
+      if (
+        typeCheck(
+          "{useGlobal:Function,useReceiver:Function,useKey:Function,...}",
+          opts
+        )
+      ) {
         const { useGlobal, useReceiver, useKey, meta } = opts;
-        return exec({
-          global: global || useGlobal(),
-          receiver: receiver || useReceiver(),
-          keygen: keygen || useKey(),
-          meta,
-        }, ...extras);
+        return exec(
+          {
+            global: global || useGlobal(),
+            receiver: receiver || useReceiver(),
+            keygen: keygen || useKey(),
+            meta
+          },
+          ...extras
+        );
       }
       throw new Error(
         `Encountered an internal constructor which specified an incorrect options argument.`
       );
     }
 
-    return exec({ global, receiver, keygen, meta: [] }, ...args)
-      // XXX: Drop meta information for top-level callers.
-      .then(transforms.first())
+    return (
+      exec({ global, receiver, keygen, meta: [] }, ...args)
+        // XXX: Drop meta information for top-level callers.
+        .then(transforms.first())
+    );
   };
 
   r.use = (...args) => {
