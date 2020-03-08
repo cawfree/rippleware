@@ -634,5 +634,5 @@ it("should be possible to retrieve the raw composition of rippleware", async () 
         ),
     );
 
-  console.log(await app(REMOVE_THIS));
+  console.log(JSON.stringify(await app(REMOVE_THIS)));
 });

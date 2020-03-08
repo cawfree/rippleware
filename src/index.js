@@ -148,16 +148,20 @@ const propagate = ([...params], [...args], [...metas], secret) => {
   );
 };
 
+const executeNestedRippleware = (app, hooks, meta, ...args) => {
+  const { useGlobal, useReceiver } = hooks;
+  const opts = Object.freeze({
+    useGlobal,
+    useReceiver,
+    meta: [meta]
+  });
+  return app(secrets.internal, opts, ...args);
+};
+
 const execute = (param, arg, meta, { ...hooks }) => {
   return Promise.resolve().then(() => {
     if (isRippleware(param)) {
-      const { useGlobal, useReceiver } = hooks;
-      const opts = Object.freeze({
-        useGlobal,
-        useReceiver,
-        meta: [meta]
-      });
-      return param(secrets.internal, opts, ...arg);
+      return executeNestedRippleware(param, hooks, meta, ...arg);
     } else if (Array.isArray(param)) {
       return Promise.all(
         param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks }))
@@ -310,6 +314,40 @@ const evaluateParams = (params, { ...hooks }) => Promise
       ])
   );
 
+const recursiveEvaluateParams = (params, { ...hooks }) => {
+  return params
+    .reduce(
+      (p, [id, args, transform, secret]) => p
+        .then(
+          ([...lastParams]) => Promise
+            .all(
+              args.map(
+                (arg) => {
+                  if (isRippleware(arg)) {
+                    return executeNestedRippleware(arg, hooks, undefined, secrets.export);
+                  }
+                  return Promise.resolve(arg);
+                },
+              ),
+            )
+            .then(
+              evaluatedArgs => [
+                ...lastParams,
+                [
+                  id,
+                  evaluatedArgs,
+                  transform,
+                  secret,
+                ],
+              ],
+            ),
+        ),
+      Promise.resolve([]),
+    );
+  // TODO: verify against this
+  return params;
+};
+
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
 
@@ -331,51 +369,51 @@ const compose = (...args) => {
   const [globalState, chainReceiver] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  const exec = ({ global, receiver, meta }, ...args) => Promise
-    .resolve()
-    .then(
-      () => {
-        resetHooks();
-    
-        const extraHooks = {
-          ...hooks,
-          useGlobal: () => global,
-          useReceiver: () => receiver,
-        }; 
-
-        return extraHooks;
-      }
-    )
-    .then(
-      async ({ ...extraHooks }) => {
-        const { useState } = extraHooks;
-        const [evaluatedParams, setEvaluatedParams] = useState(null);
-
-        if (!evaluatedParams) {
-          return evaluateParams(params, extraHooks)
-            .then(
-              (nextParams) => {
-                setEvaluatedParams(nextParams);
-                return [nextParams, extraHooks];
-              },
-            );
+  const exec = ({ global, receiver, meta }, ...args) => {
+    const shouldEvaluate = typeCheck('(String)', args) && args[0] === secrets.export;
+    return Promise
+      .resolve()
+      .then(
+        () => {
+          resetHooks();
+          return {
+            ...hooks,
+            useGlobal: () => global,
+            useReceiver: () => receiver,
+          }; 
         }
-        return [evaluatedParams, extraHooks]; 
-      },
-    )
-    .then(
-      ([evaluatedParams, extraHooks]) => {
-        const shouldEvaluate = typeCheck('(String)', args) && args[0] === secrets.export;
+      )
+      .then(
+        async ({ ...extraHooks }) => {
+          const { useState } = extraHooks;
+          const [evaluatedParams, setEvaluatedParams] = useState(null);
 
-        if (!shouldEvaluate) {
-          return executeParams(id, extraHooks, evaluatedParams, args, meta);
-        }
+          if (!evaluatedParams) {
+            return evaluateParams(params, extraHooks)
+              .then(
+                (nextParams) => {
+                  setEvaluatedParams(nextParams);
+                  return [nextParams, extraHooks];
+                },
+              );
+          }
 
-        // XXX: Due to super's meta skip.
-        return Promise
-          .resolve([evaluatedParams]);
-      },
-    );
+          return [evaluatedParams, extraHooks]; 
+        },
+      )
+      .then(
+        ([evaluatedParams, extraHooks]) => {
+          if (!shouldEvaluate) {
+            return executeParams(id, extraHooks, evaluatedParams, args, meta);
+          }
+          // XXX: Due to super's meta skip.
+          return Promise
+            .resolve()
+            .then(() => recursiveEvaluateParams(evaluatedParams, extraHooks));
+            //.then(result => [result]);
+        },
+      )
+  };
 
   const global = globalState();
   const receiver = chainReceiver;
