@@ -23,8 +23,6 @@ const secrets = Object.freeze({
   export: nanoid(),
 });
 
-export const REMOVE_THIS = secrets.export;
-
 const isSingleRippleware = ([r, ...extras]) =>
   extras.length === 0 && isRippleware(r);
 
