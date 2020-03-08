@@ -620,3 +620,19 @@ it("should broadcast singular meta across multiple channels", async () => {
 
   expect(trainingResults).toEqual([{ cnt: 0 }, { cnt: 0 }]);
 });
+
+it("should be possible to retrieve the raw composition of rippleware", async () => {
+  const app = compose()
+    .use(
+      compose()
+        .use(
+          compose()
+            .use(
+              b => !b,
+              b => !b,
+            ),
+        ),
+    );
+
+  console.log(await app(true, false));
+});

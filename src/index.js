@@ -148,9 +148,10 @@ const propagate = ([...params], [...args], [...metas], secret) => {
 const execute = (param, arg, meta, { ...hooks }) => {
   return Promise.resolve().then(() => {
     if (isRippleware(param)) {
-      const { useGlobal } = hooks;
+      const { useGlobal, useReceiver } = hooks;
       const opts = Object.freeze({
         useGlobal,
+        useReceiver,
         meta: [meta]
       });
       return param(secrets.internal, opts, ...arg);
@@ -277,15 +278,6 @@ const throwOnInvokeThunk = name => () => {
   throw new Error(`It is not possible to call ${name}() after invoking.`);
 };
 
-const parseConstructor = (...args) => {
-  if (typeCheck('(Function)', args)) {
-    return args;
-  } else if (args.length === 0) {
-    return [() => undefined];
-  }
-  throw new Error("Unsuitable arguments.");
-};
-
 const evaluateArgs = (args, { ...hooks }) =>
   args.map(arg => {
     if (typeCheck("(String, Function)", arg)) {
@@ -315,19 +307,31 @@ const evaluateParams = (params, { ...hooks }) =>
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
 
+const parseConstructor = (...args) => {
+  if (typeCheck('(Function, Function)', args)) {
+    return args;
+  } else if (typeCheck('(Function)', args)) {
+    return [...args, null];
+  } else if (args.length === 0) {
+    return [() => undefined, null];
+  }
+  throw new Error("Unsuitable arguments.");
+};
+
 const compose = (...args) => {
   const params = [];
   const id = nanoid();
 
-  const [globalState] = parseConstructor(...args);
+  const [globalState, chainReceiver] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  const exec = ({ global, meta }, ...args) => {
+  const exec = ({ global, receiver, meta }, ...args) => {
     resetHooks();
 
     const extraHooks = {
       ...hooks,
       useGlobal: () => global,
+      useReceiver: () => receiver,
     };
 
     const { useState } = extraHooks;
@@ -340,6 +344,7 @@ const compose = (...args) => {
   };
 
   const global = globalState();
+  const receiver = chainReceiver;
 
   const r = function(...args) {
     r.use = throwOnInvokeThunk("use");
@@ -350,20 +355,18 @@ const compose = (...args) => {
 
     if (isInternalConstructor(...args)) {
       const [secret, opts, ...extras] = args;
-      if (typeCheck("{useGlobal:Function,...}", opts)) {
-        const { useGlobal, meta } = opts;
-        return exec({ global: global || useGlobal(), meta }, ...extras);
+      if (typeCheck("{useGlobal:Function,useReceiver:Function,...}", opts)) {
+        const { useGlobal, useReceiver, meta } = opts;
+        return exec({ global: global || useGlobal(), receiver: receiver || useReceiver(), meta }, ...extras);
       }
       throw new Error(
         `Encountered an internal constructor which specified an incorrect options argument.`
       );
     }
 
-    return (
-      exec({ global, meta: [] }, ...args)
-        // XXX: Drop meta information for top-level callers.
-        .then(transforms.first())
-    );
+    return exec({ global, receiver, meta: [] }, ...args)
+      // XXX: Drop meta information for top-level callers.
+      .then(transforms.first())
   };
 
   r.use = (...args) => {
