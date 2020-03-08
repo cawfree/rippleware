@@ -293,7 +293,7 @@ const evaluateArgs = (args, { ...hooks }) =>
     return arg;
   });
 
-const evaluateParams = (generateKey, params, { ...hooks }) =>
+const evaluateParams = (params, { ...hooks }) =>
   Promise.resolve()
     .then(() =>
       params
@@ -308,17 +308,7 @@ const evaluateParams = (generateKey, params, { ...hooks }) =>
           transform,
           secret
         ])
-    )
-    .then(params =>
-      params.map(([args, transform, secret]) => [
-        typeCheck("Function", generateKey)
-          ? generateKey({ ...hooks }, ...args)
-          : nanoid(),
-        args,
-        transform,
-        secret
-      ])
-    );
+    ); 
 
 const isInternalConstructor = (maybeSecret, ...args) =>
   typeCheck("String", maybeSecret) && maybeSecret === secrets.internal;
@@ -363,7 +353,7 @@ const compose = (...args) => {
         const [evaluatedParams, setEvaluatedParams] = useState(null);
 
         if (!evaluatedParams) {
-          return evaluateParams(useKey(), params, extraHooks)
+          return evaluateParams(params, extraHooks)
             .then(nextParams => {
               if (typeCheck("Function", useReceiver())) {
                 return delegateToReceiver(
@@ -374,6 +364,17 @@ const compose = (...args) => {
               }
               return nextParams;
             })
+            .then(
+              paramsWithoutIds =>
+                paramsWithoutIds.map(([args, transform, secret]) => [
+                  typeCheck("Function", useKey())
+                    ? useKey()({ ...hooks }, ...args)
+                    : nanoid(),
+                  args,
+                  transform,
+                  secret
+                ]),
+            )
             .then(nextParams => {
               setEvaluatedParams(nextParams);
               return [nextParams, extraHooks];
