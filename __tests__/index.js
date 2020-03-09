@@ -625,19 +625,28 @@ it("should be possible to define a custom identifier generator", async () => {
   // XXX: Prevent recursively appending functions.
   let didAdd = false;
 
-  const someReceiver = (hooks, shouldGenerateKey, args) => {
+  const someReceiver = (hooks, args) => {
+    const { useKey } = hooks;
+    if (!typeCheck("String", useKey())) {
+      throw new Error(`Expected elevated key implementor, but encountered ${useKey()}.`);
+    }
     const [[[a, b], ...extras]] = args;
     if (!didAdd && typeCheck("Function", a) && typeCheck("Function", b)) {
       didAdd = true;
       return [
         [
           [
-            pre(({ useGlobal }) => () =>
-              useGlobal()
+            pre(({ useGlobal, useKey }) => () => {
+              return useGlobal()
                 .getState()
-                .get("cnt")
-            ),
-            b => b
+                .get("cnt");
+            }),
+            (b, { useKey }) => {
+              if (!typeCheck("Function", useKey())) {
+                throw new Error(`Expected Function useKey, but encountered ${useKey()}.`);
+              }
+              return b;
+            },
           ],
           ...extras
         ]

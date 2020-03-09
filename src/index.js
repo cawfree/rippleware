@@ -328,7 +328,6 @@ const parseConstructor = (...args) => {
 
 const delegateToReceiver = (
   shouldReceive,
-  shouldGenerateKey,
   { ...hooks },
   nextParams
 ) =>
@@ -336,7 +335,6 @@ const delegateToReceiver = (
     .then(() =>
       shouldReceive(
         { ...hooks },
-        ([args]) => shouldGenerateKey(args),
         nextParams
       )
     )
@@ -347,7 +345,6 @@ const delegateToReceiver = (
         }).then(evaluatedParams =>
           delegateToReceiver(
             shouldReceive,
-            shouldGenerateKey,
             { ...hooks },
             evaluatedParams
           )
@@ -380,7 +377,10 @@ const compose = (...args) => {
         const [evaluatedParams, setEvaluatedParams] = useState(null);
 
         if (!evaluatedParams) {
-          const shouldGenerateKey = (...args) => {
+          // XXX: During evaluation, static consumers receive an elevated
+          //      call to use key, which actually implements the definition,
+          //      as opposed to simply returning the configurable base.
+          const applyKey = (...args) => {
             if (typeCheck("Function", useKey())) {
               return useKey()({ ...extraHooks }, ...args);
             }
@@ -391,8 +391,10 @@ const compose = (...args) => {
               if (typeCheck("Function", useReceiver())) {
                 return delegateToReceiver(
                   useReceiver(),
-                  shouldGenerateKey,
-                  extraHooks,
+                  {
+                    ...extraHooks,
+                    useKey: applyKey,
+                  },
                   nextParams
                 );
               }
@@ -400,7 +402,7 @@ const compose = (...args) => {
             })
             .then(paramsWithoutIds =>
               paramsWithoutIds.map(([args, transform, secret]) => [
-                shouldGenerateKey(...args),
+                applyKey(...args),
                 args,
                 transform,
                 secret
