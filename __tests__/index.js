@@ -628,7 +628,9 @@ it("should be possible to define a custom identifier generator", async () => {
   const someReceiver = (hooks, args) => {
     const { useKey } = hooks;
     if (!typeCheck("String", useKey())) {
-      throw new Error(`Expected elevated key implementor, but encountered ${useKey()}.`);
+      throw new Error(
+        `Expected elevated key implementor, but encountered ${useKey()}.`
+      );
     }
     const [[[a, b], ...extras]] = args;
     if (!didAdd && typeCheck("Function", a) && typeCheck("Function", b)) {
@@ -643,10 +645,12 @@ it("should be possible to define a custom identifier generator", async () => {
             }),
             (b, { useKey }) => {
               if (!typeCheck("Function", useKey())) {
-                throw new Error(`Expected Function useKey, but encountered ${useKey()}.`);
+                throw new Error(
+                  `Expected Function useKey, but encountered ${useKey()}.`
+                );
               }
               return b;
-            },
+            }
           ],
           ...extras
         ]
@@ -670,11 +674,9 @@ it("should be possible to define a custom identifier generator", async () => {
 });
 
 it("should be possible to insert into an array of rippleware", async () => {
-
   let didInsert = false;
 
   const someReceiver = (hooks, args) => {
-
     for (let i = 0; i < args.length; i += 1) {
       const [actualArgs] = args[i];
       if (!didInsert && actualArgs.length === 2) {
@@ -682,7 +684,7 @@ it("should be possible to insert into an array of rippleware", async () => {
         return [
           ...args.slice(0, i),
           ...args.slice(i),
-          [ [ e => "Hello!", e => "Hello!" ], e => e, null ],
+          [[e => "Hello!", e => "Hello!"], e => e, null]
         ];
       }
     }
@@ -694,14 +696,57 @@ it("should be possible to insert into an array of rippleware", async () => {
     .use(e => e)
     .use(e => e)
     .use(
-      compose()
-        .use(
-          e => !e,
-          e => !e,
-        ),
+      compose().use(
+        e => !e,
+        e => !e
+      )
     );
 
-  expect(await app(true))
-    .toEqual(["Hello!", "Hello!"]);
+  expect(await app(true)).toEqual(["Hello!", "Hello!"]);
+});
 
+it("should permit conditional execution of a composable instance", async () => {
+  const app = compose().use([
+    ["String", compose().use(() => "It is a string!")],
+    ["*", () => "Not a string!"]
+  ]);
+
+  expect(await app("Hello!")).toEqual(["It is a string!"]);
+  expect(await app(0)).toEqual(["Not a string!"]);
+
+  const app2 = compose()
+    .use((_, { useMeta }) => {
+      useMeta(3);
+      return undefined;
+    })
+    .use([
+      [
+        "*",
+        compose().use((_, { useMeta }) => {
+          useMeta(useMeta() + 1);
+          return undefined;
+        })
+      ]
+    ])
+    .use((_, { useMeta }) => useMeta());
+
+  expect(await app2(undefined)).toEqual([4]);
+
+  const app3 = compose()
+    .use((_, { useMeta }) => {
+      useMeta([2, 1]);
+      return undefined;
+    })
+    .use([
+      [
+        "*",
+        compose().use((_, { useMeta }) => {
+          useMeta(useMeta());
+          return undefined;
+        })
+      ]
+    ])
+    .use((_, { useMeta }) => useMeta());
+
+  expect(await app3(undefined)).toEqual([[2, 1]]);
 });

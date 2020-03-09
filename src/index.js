@@ -58,6 +58,16 @@ const match = (params, arg, meta) => [
         typeCheck("String", shouldMatch) &&
         typeCheck(shouldMatch, arg)
       ) {
+        if (isSingleRippleware([exec])) {
+          const [{ ...hooks }] = extras;
+          return executeNestedRippleware(exec, hooks, meta, e).then(
+            ([[result], [meta]]) => {
+              const { useMeta } = hooks;
+              useMeta(meta);
+              return result;
+            }
+          );
+        }
         return exec(e, ...extras);
       }
     }
@@ -302,7 +312,11 @@ const evaluateParams = (params, { ...hooks }) =>
           // XXX:  Because this secret has been satisfied, we can now suppress it.
           // TODO: We might wish to specify what kind of return format we want
           //       to use. In this case, for now we assume use() only.
-          return [args.map(fn => fn({ ...hooks })), transform, (undefined && secret)];
+          return [
+            args.map(fn => fn({ ...hooks })),
+            transform,
+            undefined && secret
+          ];
         }
         return [args, transform, secret];
       })
@@ -329,28 +343,15 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
-const delegateToReceiver = (
-  shouldReceive,
-  { ...hooks },
-  nextParams
-) =>
+const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) =>
   Promise.resolve()
-    .then(() =>
-      shouldReceive(
-        { ...hooks },
-        nextParams
-      )
-    )
+    .then(() => shouldReceive({ ...hooks }, nextParams))
     .then(computedParams => {
       if (!deepEquals(nextParams, computedParams)) {
         return evaluateParams(computedParams, {
           ...hooks
         }).then(evaluatedParams =>
-          delegateToReceiver(
-            shouldReceive,
-            { ...hooks },
-            evaluatedParams
-          )
+          delegateToReceiver(shouldReceive, { ...hooks }, evaluatedParams)
         );
       }
       return computedParams;
@@ -396,7 +397,7 @@ const compose = (...args) => {
                   useReceiver(),
                   {
                     ...extraHooks,
-                    useKey: applyKey,
+                    useKey: applyKey
                   },
                   nextParams
                 );
