@@ -625,7 +625,7 @@ it("should be possible to define a custom identifier generator", async () => {
   // XXX: Prevent recursively appending functions.
   let didAdd = false;
 
-  const someReceiver = (hooks, args) => {
+  const someReceiver = (hooks, shouldGenerateKey, args) => {
     const [[[a, b], ...extras]] = args;
     if (!didAdd && typeCheck("Function", a) && typeCheck("Function", b)) {
       didAdd = true;

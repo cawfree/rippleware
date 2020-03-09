@@ -326,15 +326,31 @@ const parseConstructor = (...args) => {
   throw new Error("Unsuitable arguments.");
 };
 
-const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) =>
+const delegateToReceiver = (
+  shouldReceive,
+  shouldGenerateKey,
+  { ...hooks },
+  nextParams
+) =>
   Promise.resolve()
-    .then(() => shouldReceive({ ...hooks }, nextParams))
+    .then(() =>
+      shouldReceive(
+        { ...hooks },
+        ([args]) => shouldGenerateKey(args),
+        nextParams
+      )
+    )
     .then(computedParams => {
       if (!deepEquals(nextParams, computedParams)) {
         return evaluateParams(computedParams, {
           ...hooks
         }).then(evaluatedParams =>
-          delegateToReceiver(shouldReceive, { ...hooks }, evaluatedParams)
+          delegateToReceiver(
+            shouldReceive,
+            shouldGenerateKey,
+            { ...hooks },
+            evaluatedParams
+          )
         );
       }
       return computedParams;
@@ -364,11 +380,18 @@ const compose = (...args) => {
         const [evaluatedParams, setEvaluatedParams] = useState(null);
 
         if (!evaluatedParams) {
+          const shouldGenerateKey = (...args) => {
+            if (typeCheck("Function", useKey())) {
+              return useKey()({ ...extraHooks }, ...args);
+            }
+            return nanoid();
+          };
           return evaluateParams(params, extraHooks)
             .then(nextParams => {
               if (typeCheck("Function", useReceiver())) {
                 return delegateToReceiver(
                   useReceiver(),
+                  shouldGenerateKey,
                   extraHooks,
                   nextParams
                 );
@@ -377,9 +400,7 @@ const compose = (...args) => {
             })
             .then(paramsWithoutIds =>
               paramsWithoutIds.map(([args, transform, secret]) => [
-                typeCheck("Function", useKey())
-                  ? useKey()({ ...extraHooks }, ...args)
-                  : nanoid(),
+                shouldGenerateKey(...args),
                 args,
                 transform,
                 secret
