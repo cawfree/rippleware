@@ -378,7 +378,7 @@ const compose = (...args) => {
             .then(paramsWithoutIds =>
               paramsWithoutIds.map(([args, transform, secret]) => [
                 typeCheck("Function", useKey())
-                  ? useKey()({ ...hooks }, ...args)
+                  ? useKey()({ ...extraHooks }, ...args)
                   : nanoid(),
                 args,
                 transform,
