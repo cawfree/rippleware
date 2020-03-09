@@ -668,3 +668,39 @@ it("should be possible to define a custom identifier generator", async () => {
 
   expect(await app(true, false)).toEqual([0, false]);
 });
+
+it("should be possible to insert into an array of rippleware", async () => {
+
+  let didInsert = false;
+
+  const someReceiver = (hooks, args) => {
+
+    for (let i = 0; i < args.length; i += 1) {
+      const [actualArgs] = args[i];
+      if (!didInsert && actualArgs.length === 2) {
+        didInsert = true;
+        return [
+          ...args.slice(0, i),
+          ...args.slice(i),
+          [ [ e => "Hello!", e => "Hello!" ], e => e, null ],
+        ];
+      }
+    }
+    return args;
+  };
+
+  const app = compose(buildStore, someReceiver)
+    .use(e => e)
+    .use(e => e)
+    .use(e => e)
+    .use(
+      compose()
+        .use(
+          e => !e,
+          e => !e,
+        ),
+    );
+
+  console.log(await app(true));
+
+});
