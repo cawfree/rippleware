@@ -299,7 +299,10 @@ const evaluateParams = (params, { ...hooks }) =>
     params
       .map(([args, transform, secret]) => {
         if (typeCheck("String", secret) && secret === secrets.pre) {
-          return [args.map(fn => fn({ ...hooks })), transform, secret];
+          // XXX:  Because this secret has been satisfied, we can now suppress it.
+          // TODO: We might wish to specify what kind of return format we want
+          //       to use. In this case, for now we assume use() only.
+          return [args.map(fn => fn({ ...hooks })), transform, (undefined && secret)];
         }
         return [args, transform, secret];
       })

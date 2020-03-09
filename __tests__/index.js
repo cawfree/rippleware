@@ -701,6 +701,7 @@ it("should be possible to insert into an array of rippleware", async () => {
         ),
     );
 
-  console.log(await app(true));
+  expect(await app(true))
+    .toEqual(["Hello!", "Hello!"]);
 
 });
