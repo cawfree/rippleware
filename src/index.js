@@ -49,26 +49,38 @@ const isAggregateIndexDeclaration = e =>
   typeCheck("[[RegExp{source:String}]]", e);
 
 const match = (params, arg, meta) => [
-  (e, ...extras) => {
+  // XXX: Prevent direct propagation of useState and useEffect into the conditional routes,
+  //      as conditional execution will have an impact on execution order.
+  (e, { useState, ...extraHooks }) => {
+    // TODO: Lazy-loaded hooks would be better.
+    const [[...conditionalHooks]] = useState(
+      () => params
+        .map(() => createHooks()),
+    );
     for (let i = 0; i < params.length; i += 1) {
+      const [paramSpecificHooks, resetParamSpecificHooks] = conditionalHooks[i];
+      resetParamSpecificHooks();
+      const { ...hooks } = {
+        ...extraHooks,
+        ...paramSpecificHooks,
+      };
       const [shouldMatch, exec] = params[i];
       if (typeCheck("Function", shouldMatch) && shouldMatch(arg)) {
-        return exec(e, ...extras);
+        return exec(e, { ...hooks });
       } else if (
         typeCheck("String", shouldMatch) &&
         typeCheck(shouldMatch, arg)
       ) {
         if (isSingleRippleware([exec])) {
-          const [{ ...hooks }] = extras;
-          return executeNestedRippleware(exec, hooks, meta, e).then(
+          return executeNestedRippleware(exec, { ...hooks }, meta, e).then(
             ([[result], [meta]]) => {
-              const { useMeta } = hooks;
+              const { useMeta } = extraHooks;
               useMeta(meta);
               return result;
             }
           );
         }
-        return exec(e, ...extras);
+        return exec(e, { ...hooks });
       }
     }
     throw new Error(`Unable to find a valid matcher for ${arg}.`);
@@ -88,6 +100,7 @@ const aggregate = (params, arg, meta, secret) => {
 const shouldIndex = (param, arg, meta, secret) => {
   if (Array.isArray(param)) {
     if (isNestedArray(param)) {
+      // XXX: Effectively, isConditional.
       if (isMatcherDeclaration(param)) {
         return match(param, arg, meta);
       } else if (isAggregateIndexDeclaration(param)) {

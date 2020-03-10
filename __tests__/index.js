@@ -750,3 +750,43 @@ it("should permit conditional execution of a composable instance", async () => {
 
   expect(await app3(undefined)).toEqual([[2, 1]]);
 });
+
+it("should be possible to retain state in between conditionally executed hooks", async () => {
+  const app = compose()
+    .use(
+      [
+        ['Number', (_, { useState }) => {
+          const [state] = useState(4);
+          if (state !== 4) {
+            throw new Error(`Expected 4, encountered ${state}.`);
+          }
+          return _;
+        }],
+        ['*', noop()],
+      ],
+    )
+    .use(
+      [
+        ['String', (_, { useState }) => {
+          const [state] = useState("hello");
+          if (state !== "hello") {
+            throw new Error(`Expected \"hello\", encountered ${state}.`);
+          }
+          return _;
+        }],
+        ['*', noop()],
+      ],
+    );
+
+  // XXX: These cause the app to flip between branches of executed middleware.
+  //      We expect the states for these layers to be retained even though they're
+  //      skipped out of current execution. (There is no unmounting in rippleware).
+
+  await app(0);
+  await app("String");
+  await app(0);
+  await app("String");
+
+  expect(true)
+    .toBeTruthy();
+});
