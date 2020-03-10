@@ -171,10 +171,11 @@ const propagate = ([...params], [...args], [...metas], secret) => {
 };
 
 const executeNestedRippleware = (app, hooks, meta, ...args) => {
-  const { useGlobal, useReceiver, useKey } = hooks;
+  const { useGlobal, useReceiver, useContext, useKey } = hooks;
   const opts = Object.freeze({
     useGlobal,
     useReceiver,
+    useContext,
     useKey,
     meta: [meta]
   });
@@ -376,7 +377,7 @@ const compose = (...args) => {
   const [globalState, chainReceiver, generateKey] = parseConstructor(...args);
   const [hooks, resetHooks] = createHooks();
 
-  const exec = ({ global, receiver, keygen, meta }, ...args) => {
+  const exec = ({ global, receiver, context, keygen, meta }, ...args) => {
     const shouldEvaluate =
       typeCheck("(String)", args) && args[0] === secrets.export;
     return Promise.resolve()
@@ -386,11 +387,12 @@ const compose = (...args) => {
           ...hooks,
           useGlobal: () => global,
           useReceiver: () => receiver,
+          useContext: () => context,
           useKey: () => keygen
         };
       })
       .then(async ({ ...extraHooks }) => {
-        const { useState, useKey, useReceiver } = extraHooks;
+        const { useState, useKey, useReceiver, useContext } = extraHooks;
         const [evaluatedParams, setEvaluatedParams] = useState(null);
 
         if (!evaluatedParams) {
@@ -444,6 +446,7 @@ const compose = (...args) => {
   const global = globalState();
   const receiver = chainReceiver;
   const keygen = generateKey;
+  let context = undefined;
 
   const r = function(...args) {
     r.use = throwOnInvokeThunk("use");
@@ -456,15 +459,16 @@ const compose = (...args) => {
       const [secret, opts, ...extras] = args;
       if (
         typeCheck(
-          "{useGlobal:Function,useReceiver:Function,useKey:Function,...}",
+          "{useGlobal:Function,useReceiver:Function,useKey:Function,useContext:Function,...}",
           opts
         )
       ) {
-        const { useGlobal, useReceiver, useKey, meta } = opts;
+        const { useGlobal, useReceiver, useKey, useContext, meta } = opts;
         return exec(
           {
             global: global || useGlobal(),
             receiver: receiver || useReceiver(),
+            context: context || useContext(),
             keygen: keygen || useKey(),
             meta
           },
@@ -477,7 +481,7 @@ const compose = (...args) => {
     }
 
     return (
-      exec({ global, receiver, keygen, meta: [] }, ...args)
+      exec({ global, receiver, context, keygen, meta: [] }, ...args)
         // XXX: Drop meta information for top-level callers.
         .then(transforms.first())
     );
@@ -508,6 +512,23 @@ const compose = (...args) => {
       args.length === 1 ? transforms.sep() : transforms.identity(),
       secrets.all
     ]);
+    return r;
+  };
+  r.ctx = (...args) => {
+    if (context !== undefined) {
+      throw new Error('Attempted to overwrite existing context.');
+    } else if (params.length > 0) {
+      throw new Error('A call to ctx() must be made before any middleware has been defined.');
+    } else if (args.length > 1) {
+      throw new Error(`Attempted to write ${args.length} context attributes, but only a single argument is permitted. You can try not passing these as an array.`);
+    }
+    const [arg] = args;
+    if (arg === undefined) {
+      throw new Error(`Expected a context definition, but encountered ${arg}.`);
+    }
+
+    context = arg;
+
     return r;
   };
   return r;

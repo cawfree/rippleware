@@ -790,3 +790,62 @@ it("should be possible to retain state in between conditionally executed hooks",
   expect(true)
     .toBeTruthy();
 });
+
+it("should be possible to define the context of execution for a rippleware", async () => {
+  expect(() => compose().ctx()).toThrow();
+  expect(() => compose().ctx(undefined)).toThrow();
+  expect(() => compose().ctx(1, 2)).toThrow();
+  expect(() => compose().ctx([1, 2])).toBeTruthy();
+  expect(() => compose().ctx([1, 2]).ctx([1, 2])).toThrow();
+  expect(() => compose().use(noop()).ctx([1, 2])).toThrow();
+
+  const app = compose()
+    .use((_, { useContext }) => useContext());
+
+  expect(await app(3)).toEqual([undefined]);
+
+  const app2 = compose()
+    .ctx("Context.")
+    .use((_, { useContext }) => useContext());
+
+  expect(await app2(3)).toEqual(["Context."]);
+
+  const app3 = compose()
+    .ctx("Nested context.")
+    .use(
+      compose()
+        .use(
+          compose()
+            .use(
+              (_, { useContext }) => useContext(),
+            ),
+        ),
+    );
+
+  expect(await app3(3)).toEqual(["Nested context."]);
+
+  const app4 = compose()
+    .ctx("Context A")
+    .use(
+      compose()
+        .ctx("Context B")
+        .use(
+          (_, { useContext }) => useContext(),
+        ),
+    )
+
+  expect(await app4(undefined)).toEqual(["Context B"]);
+
+  const app5 = compose()
+    .ctx("Context A")
+    .use(
+      compose()
+        .ctx("Context B")
+        .use(noop()),
+    )
+    .use(
+      (_, { useContext }) => useContext(),
+    );
+
+  expect(await app5(undefined)).toEqual(["Context A"]);
+});
