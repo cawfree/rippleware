@@ -793,7 +793,6 @@ it("should be possible to retain state in between conditionally executed hooks",
 
 it("should be possible to define the context of execution for a rippleware", async () => {
   expect(() => compose().ctx()).toThrow();
-  expect(() => compose().ctx(undefined)).toThrow();
   expect(() => compose().ctx(1, 2)).toThrow();
   expect(() => compose().ctx([1, 2])).toBeTruthy();
   expect(() => compose().ctx([1, 2]).ctx([1, 2])).toThrow();
@@ -848,4 +847,36 @@ it("should be possible to define the context of execution for a rippleware", asy
     );
 
   expect(await app5(undefined)).toEqual(["Context A"]);
+
+  const app6 = compose(buildStore)
+    .ctx(
+      ({ useGlobal }) => useGlobal().getState().get('cnt'),
+    )
+    .use((_, { useContext }) => useContext());
+
+  expect(await app6(undefined)).toEqual([0]);
+
+  const app7 = compose(buildStore)
+    .ctx(
+      ({ useGlobal }) => useGlobal().getState().get('cnt'),
+    )
+    .use(
+      compose()
+        .use((_, { useContext }) => useContext()),
+    );
+
+  expect(await app7(undefined)).toEqual([0]);
+
+  const app8 = compose(buildStore)
+    .ctx(
+      ({ useGlobal }) => useGlobal().getState().get('cnt'),
+    )
+    .use(
+      compose()
+        .ctx(() => "hello")
+        .use(noop())
+    )
+    .use((_, { useContext }) => useContext());
+
+  expect(await app8(undefined)).toEqual([0]);
 });

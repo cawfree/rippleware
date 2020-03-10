@@ -21,7 +21,8 @@ const secrets = Object.freeze({
   pre: nanoid(),
   all: nanoid(),
   sep: nanoid(),
-  export: nanoid()
+  export: nanoid(),
+  ctx: nanoid(),
 });
 
 const isSingleRippleware = ([r, ...extras]) =>
@@ -371,6 +372,18 @@ const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) =>
       return computedParams;
     });
 
+const stripLocalContext = (params, { ...hooks }) => {
+  const [maybeContext] = params;
+  if (Array.isArray(maybeContext) && maybeContext.length === 2 && maybeContext[1] === secrets.ctx) {
+    const [context] = maybeContext;
+    return [
+      typeCheck("Function", context) ? context({ ...hooks }) : context,
+      params.filter((_, i) => (i > 0)),
+    ];
+  }
+  return [undefined, params];
+};
+
 const compose = (...args) => {
   const params = [];
 
@@ -383,21 +396,29 @@ const compose = (...args) => {
     return Promise.resolve()
       .then(() => {
         resetHooks();
-        return {
+        const h = {
           ...hooks,
           useGlobal: () => global,
           useReceiver: () => receiver,
+          useKey: () => keygen,
           useContext: () => context,
-          useKey: () => keygen
         };
+        const [localContext, localParams] = stripLocalContext(params, h);
+        return [
+          localParams,
+          {
+            ...h,
+            useContext: () => (localContext !== undefined) ? localContext : context,
+          },
+        ];
       })
-      .then(async ({ ...extraHooks }) => {
-        const { useState, useKey, useReceiver, useContext } = extraHooks;
+      .then(async ([localParams, { ...extraHooks }]) => {
+        const { useState, useKey, useReceiver } = extraHooks;
         const [evaluatedParams, setEvaluatedParams] = useState(null);
 
         if (!evaluatedParams) {
           // XXX: During evaluation, static consumers receive an elevated
-          //      call to use key, which actually implements the definition,
+          //      call to useKey, which actually implements the definition,
           //      as opposed to simply returning the configurable base.
           const applyKey = (...args) => {
             if (typeCheck("Function", useKey())) {
@@ -405,7 +426,7 @@ const compose = (...args) => {
             }
             return nanoid();
           };
-          return evaluateParams(params, extraHooks)
+          return evaluateParams(localParams, extraHooks)
             .then(nextParams => {
               if (typeCheck("Function", useReceiver())) {
                 return delegateToReceiver(
@@ -446,7 +467,6 @@ const compose = (...args) => {
   const global = globalState();
   const receiver = chainReceiver;
   const keygen = generateKey;
-  let context = undefined;
 
   const r = function(...args) {
     r.use = throwOnInvokeThunk("use");
@@ -468,8 +488,9 @@ const compose = (...args) => {
           {
             global: global || useGlobal(),
             receiver: receiver || useReceiver(),
-            context: context || useContext(),
             keygen: keygen || useKey(),
+            // XXX: Propagate context, which may be overwritten.
+            context: useContext(),
             meta
           },
           ...extras
@@ -479,12 +500,10 @@ const compose = (...args) => {
         `Encountered an internal constructor which specified an incorrect options argument.`
       );
     }
-
-    return (
-      exec({ global, receiver, context, keygen, meta: [] }, ...args)
-        // XXX: Drop meta information for top-level callers.
-        .then(transforms.first())
-    );
+    // XXX: Initial context is not defined.
+    return exec({ global, receiver, keygen, context: undefined, meta: [] }, ...args)
+      // XXX: Drop meta information for top-level callers.
+      .then(transforms.first());
   };
 
   r.use = (...args) => {
@@ -515,20 +534,16 @@ const compose = (...args) => {
     return r;
   };
   r.ctx = (...args) => {
-    if (context !== undefined) {
-      throw new Error('Attempted to overwrite existing context.');
+    if (args.length !== 1) {
+      throw new Error(`A call to ctx() must specify a single argument.`);
     } else if (params.length > 0) {
-      throw new Error('A call to ctx() must be made before any middleware has been defined.');
-    } else if (args.length > 1) {
-      throw new Error(`Attempted to write ${args.length} context attributes, but only a single argument is permitted. You can try not passing these as an array.`);
+      throw new Error('A call to ctx() must be the first in the middleware chain.');
     }
     const [arg] = args;
-    if (arg === undefined) {
-      throw new Error(`Expected a context definition, but encountered ${arg}.`);
-    }
-
-    context = arg;
-
+    params.push([
+      arg,
+      secrets.ctx,
+    ]);
     return r;
   };
   return r;
