@@ -22,7 +22,7 @@ const secrets = Object.freeze({
   all: nanoid(),
   sep: nanoid(),
   export: nanoid(),
-  ctx: nanoid(),
+  ctx: nanoid()
 });
 
 const isSingleRippleware = ([r, ...extras]) =>
@@ -54,16 +54,15 @@ const match = (params, arg, meta) => [
   //      as conditional execution will have an impact on execution order.
   (e, { useState, ...extraHooks }) => {
     // TODO: Lazy-loaded hooks would be better.
-    const [[...conditionalHooks]] = useState(
-      () => params
-        .map(() => createHooks()),
+    const [[...conditionalHooks]] = useState(() =>
+      params.map(() => createHooks())
     );
     for (let i = 0; i < params.length; i += 1) {
       const [paramSpecificHooks, resetParamSpecificHooks] = conditionalHooks[i];
       resetParamSpecificHooks();
       const { ...hooks } = {
         ...extraHooks,
-        ...paramSpecificHooks,
+        ...paramSpecificHooks
       };
       const [shouldMatch, exec] = params[i];
       if (typeCheck("Function", shouldMatch) && shouldMatch(arg)) {
@@ -74,10 +73,14 @@ const match = (params, arg, meta) => [
       ) {
         if (isSingleRippleware([exec])) {
           return executeNestedRippleware(exec, { ...hooks }, meta, e).then(
-            ([[result], [meta]]) => {
+            ([results, metas]) => {
               const { useMeta } = extraHooks;
-              useMeta(meta);
-              return result;
+              if (results.length === 1) {
+                useMeta(transforms.first()(metas));
+                return transforms.first()(results);
+              }
+              useMeta(transforms.sep()(metas));
+              return transforms.sep()(results);
             }
           );
         }
@@ -165,7 +168,7 @@ const propagate = ([...params], [...args], [...metas], secret) => {
     return ensureIndexed(params, [...args, ...p], [...metas, ...m], secret);
   } else if (secret === secrets.all) {
     return ensureIndexed(params, args, metas, secret);
-  } 
+  }
   throw new Error(
     `There is no viable way to propagate between ${params} and ${args}.`
   );
@@ -374,11 +377,15 @@ const delegateToReceiver = (shouldReceive, { ...hooks }, nextParams) =>
 
 const stripLocalContext = (params, { ...hooks }) => {
   const [maybeContext] = params;
-  if (Array.isArray(maybeContext) && maybeContext.length === 2 && maybeContext[1] === secrets.ctx) {
+  if (
+    Array.isArray(maybeContext) &&
+    maybeContext.length === 2 &&
+    maybeContext[1] === secrets.ctx
+  ) {
     const [context] = maybeContext;
     return [
       typeCheck("Function", context) ? context({ ...hooks }) : context,
-      params.filter((_, i) => (i > 0)),
+      params.filter((_, i) => i > 0)
     ];
   }
   return [undefined, params];
@@ -401,15 +408,16 @@ const compose = (...args) => {
           useGlobal: () => global,
           useReceiver: () => receiver,
           useKey: () => keygen,
-          useContext: () => context,
+          useContext: () => context
         };
         const [localContext, localParams] = stripLocalContext(params, h);
         return [
           localParams,
           {
             ...h,
-            useContext: () => (localContext !== undefined) ? localContext : context,
-          },
+            useContext: () =>
+              localContext !== undefined ? localContext : context
+          }
         ];
       })
       .then(async ([localParams, { ...extraHooks }]) => {
@@ -501,9 +509,11 @@ const compose = (...args) => {
       );
     }
     // XXX: Initial context is not defined.
-    return exec({ global, receiver, keygen, context: undefined, meta: [] }, ...args)
-      // XXX: Drop meta information for top-level callers.
-      .then(transforms.first());
+    return (
+      exec({ global, receiver, keygen, context: undefined, meta: [] }, ...args)
+        // XXX: Drop meta information for top-level callers.
+        .then(transforms.first())
+    );
   };
 
   r.use = (...args) => {
@@ -511,7 +521,11 @@ const compose = (...args) => {
     return r;
   };
   r.sep = (...args) => {
-    params.push([args, transforms.sep(), secrets.sep]);
+    params.push([
+      args.length === 0 ? [e => e] : args,
+      transforms.sep(),
+      secrets.sep
+    ]);
     return r;
   };
   r.pre = (...args) => {
@@ -537,13 +551,12 @@ const compose = (...args) => {
     if (args.length !== 1) {
       throw new Error(`A call to ctx() must specify a single argument.`);
     } else if (params.length > 0) {
-      throw new Error('A call to ctx() must be the first in the middleware chain.');
+      throw new Error(
+        "A call to ctx() must be the first in the middleware chain."
+      );
     }
     const [arg] = args;
-    params.push([
-      arg,
-      secrets.ctx,
-    ]);
+    params.push([arg, secrets.ctx]);
     return r;
   };
   return r;

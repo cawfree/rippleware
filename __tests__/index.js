@@ -753,30 +753,32 @@ it("should permit conditional execution of a composable instance", async () => {
 
 it("should be possible to retain state in between conditionally executed hooks", async () => {
   const app = compose()
-    .use(
+    .use([
       [
-        ['Number', (_, { useState }) => {
+        "Number",
+        (_, { useState }) => {
           const [state] = useState(4);
           if (state !== 4) {
             throw new Error(`Expected 4, encountered ${state}.`);
           }
           return _;
-        }],
-        ['*', noop()],
+        }
       ],
-    )
-    .use(
+      ["*", noop()]
+    ])
+    .use([
       [
-        ['String', (_, { useState }) => {
+        "String",
+        (_, { useState }) => {
           const [state] = useState("hello");
           if (state !== "hello") {
             throw new Error(`Expected \"hello\", encountered ${state}.`);
           }
           return _;
-        }],
-        ['*', noop()],
+        }
       ],
-    );
+      ["*", noop()]
+    ]);
 
   // XXX: These cause the app to flip between branches of executed middleware.
   //      We expect the states for these layers to be retained even though they're
@@ -787,19 +789,25 @@ it("should be possible to retain state in between conditionally executed hooks",
   await app(0);
   await app("String");
 
-  expect(true)
-    .toBeTruthy();
+  expect(true).toBeTruthy();
 });
 
 it("should be possible to define the context of execution for a rippleware", async () => {
   expect(() => compose().ctx()).toThrow();
   expect(() => compose().ctx(1, 2)).toThrow();
   expect(() => compose().ctx([1, 2])).toBeTruthy();
-  expect(() => compose().ctx([1, 2]).ctx([1, 2])).toThrow();
-  expect(() => compose().use(noop()).ctx([1, 2])).toThrow();
+  expect(() =>
+    compose()
+      .ctx([1, 2])
+      .ctx([1, 2])
+  ).toThrow();
+  expect(() =>
+    compose()
+      .use(noop())
+      .ctx([1, 2])
+  ).toThrow();
 
-  const app = compose()
-    .use((_, { useContext }) => useContext());
+  const app = compose().use((_, { useContext }) => useContext());
 
   expect(await app(3)).toEqual([undefined]);
 
@@ -811,15 +819,7 @@ it("should be possible to define the context of execution for a rippleware", asy
 
   const app3 = compose()
     .ctx("Nested context.")
-    .use(
-      compose()
-        .use(
-          compose()
-            .use(
-              (_, { useContext }) => useContext(),
-            ),
-        ),
-    );
+    .use(compose().use(compose().use((_, { useContext }) => useContext())));
 
   expect(await app3(3)).toEqual(["Nested context."]);
 
@@ -828,10 +828,8 @@ it("should be possible to define the context of execution for a rippleware", asy
     .use(
       compose()
         .ctx("Context B")
-        .use(
-          (_, { useContext }) => useContext(),
-        ),
-    )
+        .use((_, { useContext }) => useContext())
+    );
 
   expect(await app4(undefined)).toEqual(["Context B"]);
 
@@ -840,36 +838,37 @@ it("should be possible to define the context of execution for a rippleware", asy
     .use(
       compose()
         .ctx("Context B")
-        .use(noop()),
+        .use(noop())
     )
-    .use(
-      (_, { useContext }) => useContext(),
-    );
+    .use((_, { useContext }) => useContext());
 
   expect(await app5(undefined)).toEqual(["Context A"]);
 
   const app6 = compose(buildStore)
-    .ctx(
-      ({ useGlobal }) => useGlobal().getState().get('cnt'),
+    .ctx(({ useGlobal }) =>
+      useGlobal()
+        .getState()
+        .get("cnt")
     )
     .use((_, { useContext }) => useContext());
 
   expect(await app6(undefined)).toEqual([0]);
 
   const app7 = compose(buildStore)
-    .ctx(
-      ({ useGlobal }) => useGlobal().getState().get('cnt'),
+    .ctx(({ useGlobal }) =>
+      useGlobal()
+        .getState()
+        .get("cnt")
     )
-    .use(
-      compose()
-        .use((_, { useContext }) => useContext()),
-    );
+    .use(compose().use((_, { useContext }) => useContext()));
 
   expect(await app7(undefined)).toEqual([0]);
 
   const app8 = compose(buildStore)
-    .ctx(
-      ({ useGlobal }) => useGlobal().getState().get('cnt'),
+    .ctx(({ useGlobal }) =>
+      useGlobal()
+        .getState()
+        .get("cnt")
     )
     .use(
       compose()
@@ -884,14 +883,17 @@ it("should be possible to define the context of execution for a rippleware", asy
 it("should be capable of broadcasting input data across conditionals", async () => {
   const app = compose()
     .use(
-      compose()
-        .use(
-          [
-            ['String', compose()
-              .use(() => 4, () => 4)
-              .all(e => e, e => e)],
-          ],
-        ),
-    );
-  expect(await app("hi")).toEqual([[4, 4]]);
+      compose().use([
+        [
+          "String",
+          compose().all(
+            e => e,
+            e => e
+          )
+        ]
+      ])
+    )
+    .sep();
+
+  expect(await app("hi")).toEqual(["hi", "hi"]);
 });
