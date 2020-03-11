@@ -251,10 +251,17 @@ const prepareChannel = (
   secret
 ) => {
   if (secret === secrets.all) {
+    // XXX: Decides whether to propagate channel information or not.
+    const transform = data => {
+      if (data.length === 1) {
+        return transforms.first()(data);
+      }
+      return data;
+    };
     return [
       params,
-      params.map(() => dataFromLastStage),
-      params.map(() => metasFromLastStage),
+      params.map(() => transform(dataFromLastStage)),
+      params.map(() => transform(metasFromLastStage)),
       secret
     ];
   }
