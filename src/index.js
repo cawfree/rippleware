@@ -165,7 +165,7 @@ const propagate = ([...params], [...args], [...metas], secret) => {
     return ensureIndexed(params, [...args, ...p], [...metas, ...m], secret);
   } else if (secret === secrets.all) {
     return ensureIndexed(params, args, metas, secret);
-  }
+  } 
   throw new Error(
     `There is no viable way to propagate between ${params} and ${args}.`
   );
@@ -250,8 +250,8 @@ const prepareChannel = (
   if (secret === secrets.all) {
     return [
       params,
-      dataFromLastStage.map(() => dataFromLastStage),
-      metasFromLastStage.map(() => metasFromLastStage),
+      params.map(() => dataFromLastStage),
+      params.map(() => metasFromLastStage),
       secret
     ];
   }

@@ -880,3 +880,21 @@ it("should be possible to define the context of execution for a rippleware", asy
 
   expect(await app8(undefined)).toEqual([0]);
 });
+
+it("should be capable of broadcasting input data across conditionals", async () => {
+  //const app = compose()
+  //  .use(
+  //    compose()
+  //      .use(
+  //        [
+  //          ['String', compose()
+  //            .use(
+  //              () => console.log('hiii'),
+  //            )
+  //            .all(e => e, e => e)],
+  //          ['*', noop()],
+  //        ],
+  //      ),
+  //  );
+  //console.log(await app("hi"));
+});
