@@ -72,7 +72,7 @@ it("should be possible to define a matcher array", async () => {
 });
 
 it("should be possible to use regular expressions to index on supplied data", async () => {
-  const app = compose().sep([/$.*.t/, /$.*.s/]);
+  const app = compose().all([/$.*.t/, /$.*.s/]);
 
   expect(await app(imdb)).toEqual([
     ["Good!", "Bad!"],
