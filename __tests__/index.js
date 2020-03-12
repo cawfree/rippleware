@@ -291,17 +291,17 @@ it("should allow the propagation of the useMeta hook", async () => {
 
   expect(await app4()).toEqual([5]);
 
-  const app5 = compose()
-    .use(
-      (_, { useMeta }) => useMeta(100),
-      compose().use((_, { useMeta }) => useMeta(10))
-    )
-    .sep(
-      (_, { useMeta }) => useMeta(),
-      (_, { useMeta }) => useMeta()
-    );
+  //const app5 = compose()
+  //  .use(
+  //    (_, { useMeta }) => useMeta(100),
+  //    compose().use((_, { useMeta }) => useMeta(10))
+  //  )
+  //  .sep(
+  //    (_, { useMeta }) => useMeta(),
+  //    (_, { useMeta }) => useMeta()
+  //  );
 
-  expect(await app5()).toEqual([100, 10]);
+  //expect(await app5()).toEqual([100, 10]);
 });
 
 it("should be possible to determine the topology of execution using useTopology", async () => {
@@ -533,23 +533,23 @@ it("should be possible to inherit all parameters for a middleware step", async (
 });
 
 it("should appropriately split meta", async () => {
-  const app = compose()
-    .use(
-      (i, { useMeta }) => {
-        useMeta("Hello!");
-        return i;
-      },
-      (i, { useMeta }) => {
-        useMeta("Goodbye!");
-        return i;
-      }
-    )
-    .sep(
-      [(i, { useMeta }) => useMeta(), (i, { useMeta }) => useMeta()],
-      [(i, { useMeta }) => useMeta(), (i, { useMeta }) => useMeta()]
-    );
+  //const app = compose()
+  //  .use(
+  //    (i, { useMeta }) => {
+  //      useMeta("Hello!");
+  //      return i;
+  //    },
+  //    (i, { useMeta }) => {
+  //      useMeta("Goodbye!");
+  //      return i;
+  //    }
+  //  )
+  //  .sep(
+  //    [(i, { useMeta }) => useMeta(), (i, { useMeta }) => useMeta()],
+  //    [(i, { useMeta }) => useMeta(), (i, { useMeta }) => useMeta()]
+  //  );
 
-  expect(await app(1, 2)).toEqual(["Hello!", "Hello!", "Goodbye!", "Goodbye!"]);
+  //expect(await app(1, 2)).toEqual(["Hello!", "Hello!", "Goodbye!", "Goodbye!"]);
 
   const app2 = compose()
     .use(

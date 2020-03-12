@@ -8,7 +8,7 @@ import createHooks from "./createHooks";
 export const isRippleware = e =>
   typeCheck("Function", e) &&
   typeCheck("Function", e.use) &&
-  typeCheck("Function", e.sep) &&
+  //typeCheck("Function", e.sep) &&
   typeCheck("Function", e.pre) &&
   typeCheck("Function", e.mix) &&
   typeCheck("Function", e.all);
@@ -20,7 +20,7 @@ const secrets = Object.freeze({
   internal: nanoid(),
   pre: nanoid(),
   all: nanoid(),
-  sep: nanoid(),
+  //sep: nanoid(),
   export: nanoid(),
   ctx: nanoid()
 });
@@ -52,7 +52,8 @@ const isAggregateIndexDeclaration = e =>
 const aggregate = (params, arg, meta, secret) => [
   dataIn => params.map(p => p.map(q => expression(q, dataIn))),
   arg,
-  secret === secrets.sep ? params.map(() => meta) : meta
+  meta,
+  //secret === secrets.sep ? params.map(() => meta) : meta
 ];
 
 const shouldIndex = (param, arg, meta, secret) => {
@@ -473,7 +474,7 @@ const compose = (...args) => {
 
   const r = function(...args) {
     r.use = throwOnInvokeThunk("use");
-    r.sep = throwOnInvokeThunk("sep");
+    //r.sep = throwOnInvokeThunk("sep");
     r.pre = throwOnInvokeThunk("pre");
     r.mix = throwOnInvokeThunk("mix");
     r.all = throwOnInvokeThunk("all");
@@ -515,14 +516,14 @@ const compose = (...args) => {
     params.push([args, transforms.identity(), null]);
     return r;
   };
-  r.sep = (...args) => {
-    params.push([
-      args.length === 0 ? [e => e] : args,
-      transforms.sep(),
-      secrets.sep
-    ]);
-    return r;
-  };
+  //r.sep = (...args) => {
+  //  params.push([
+  //    args.length === 0 ? [e => e] : args,
+  //    transforms.sep(),
+  //    secrets.sep
+  //  ]);
+  //  return r;
+  //};
   r.pre = (...args) => {
     if (typeCheck("[Function]", args)) {
       params.push([args, transforms.identity(), secrets.pre]);
@@ -537,6 +538,7 @@ const compose = (...args) => {
   r.all = (...args) => {
     params.push([
       args,
+      // ici?
       args.length === 1 ? transforms.sep() : transforms.identity(),
       secrets.all
     ]);
