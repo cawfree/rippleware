@@ -52,7 +52,7 @@ const isAggregateIndexDeclaration = e =>
 const aggregate = (params, arg, meta, secret) => [
   dataIn => params.map(p => p.map(q => expression(q, dataIn))),
   arg,
-  meta,
+  meta
   //secret === secrets.sep ? params.map(() => meta) : meta
 ];
 
@@ -223,9 +223,16 @@ const executeStage = (
   Promise.resolve()
     .then(() =>
       Promise.all(
-        params.map((param, i) =>
-          execute(param, args[i], metas[i], { ...hooks })
-        )
+        params.map((param, i) => {
+          return execute(param, args[i], metas[i], { ...hooks }).then(
+            ([result, meta]) => {
+              if (!isSingleRippleware(params) && isRippleware(param)) {
+                return [transforms.first()(result), transforms.first()(meta)];
+              }
+              return [result, meta];
+            }
+          );
+        })
       )
     )
     .then(([...results]) => [
