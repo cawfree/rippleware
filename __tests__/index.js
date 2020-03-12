@@ -132,7 +132,7 @@ it("should not be possible to append new middleware after invocation, but the in
   expect(await app(undefined)).toEqual([true]);
 
   expect(() => app.use(() => true)).toThrow();
-  expect(() => app.sep(() => true)).toThrow();
+  expect(() => app.all(() => true)).toThrow();
 
   expect(isRippleware(app)).toEqual(true);
 });
