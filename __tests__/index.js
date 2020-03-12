@@ -921,8 +921,55 @@ it("should be possible to inspect state from a matcher function", async () => {
   expect(await app(3)).toEqual([3]);
 });
 
-it("should be possible to execute middleware against a matcher", async () => {
+it("should be possible to execute middleware against a matcher function", async () => {
   const app = compose().use([[() => true, compose().use(b => !b)]]);
 
   expect(await app(false)).toEqual([true]);
+});
+
+it("should be possible to propagate channel information from nested rippleware", async () => {
+  const app = compose()
+    .use(
+      compose()
+        .all(e => e, e => e),
+    )
+    .use(
+      e => e + 1,
+      e => e + 1,
+    );
+
+  expect(await app(5)).toEqual([ 6, 6 ]);
+
+  const app2 = compose()
+    .use(
+      compose()
+        .use(
+          compose()
+            .all(e => e, e => e),
+        ),
+    )
+    .use(
+      e => e + 1,
+      e => e + 1,
+    );
+
+  expect(await app2(5)).toEqual([ 6, 6 ]);
+
+  const app4 = compose()
+    .use(
+      [
+        ['Number', compose()
+          .all(e => e, e => e)],
+      ],
+    );
+
+  console.log(await app4(5));
+
+  const app5 = compose()
+    .use(
+      compose()
+        .all(e => e, e => e),
+    );
+
+  console.log(await app5(5));
 });
