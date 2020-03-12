@@ -49,6 +49,23 @@ const isMatcherDeclaration = e => typeCheck("[(Function|String,Function)]", e);
 const isAggregateIndexDeclaration = e =>
   typeCheck("[[RegExp{source:String}]]", e);
 
+const matchedExec = (exec, hooks, meta, e) => {
+  if (isSingleRippleware([exec])) {
+    return executeNestedRippleware(exec, { ...hooks }, meta, e).then(
+      ([results, metas]) => {
+        const { useMeta } = hooks;
+        if (results.length === 1) {
+          useMeta(transforms.first()(metas));
+          return transforms.first()(results);
+        }
+        useMeta(transforms.sep()(metas));
+        return transforms.sep()(results);
+      }
+    );
+  }
+  return exec(e, { ...hooks });
+};
+
 const match = (params, arg, meta) => [
   // XXX: Prevent direct propagation of useState and useEffect into the conditional routes,
   //      as conditional execution will have an impact on execution order.
@@ -69,25 +86,12 @@ const match = (params, arg, meta) => [
         typeCheck("Function", shouldMatch) &&
         shouldMatch(arg, { ...hooks })
       ) {
-        return exec(e, { ...hooks });
+        return matchedExec(exec, { ...hooks }, meta, e);
       } else if (
         typeCheck("String", shouldMatch) &&
         typeCheck(shouldMatch, arg)
       ) {
-        if (isSingleRippleware([exec])) {
-          return executeNestedRippleware(exec, { ...hooks }, meta, e).then(
-            ([results, metas]) => {
-              const { useMeta } = extraHooks;
-              if (results.length === 1) {
-                useMeta(transforms.first()(metas));
-                return transforms.first()(results);
-              }
-              useMeta(transforms.sep()(metas));
-              return transforms.sep()(results);
-            }
-          );
-        }
-        return exec(e, { ...hooks });
+        return matchedExec(exec, { ...hooks }, meta, e);
       }
     }
     throw new Error(`Unable to find a valid matcher for ${arg}.`);

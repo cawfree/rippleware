@@ -920,3 +920,9 @@ it("should be possible to inspect state from a matcher function", async () => {
   expect(await app(3)).toEqual([true]);
   expect(await app(3)).toEqual([3]);
 });
+
+it("should be possible to execute middleware against a matcher", async () => {
+  const app = compose().use([[() => true, compose().use(b => !b)]]);
+
+  expect(await app(false)).toEqual([true]);
+});
