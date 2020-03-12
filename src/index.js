@@ -65,7 +65,10 @@ const match = (params, arg, meta) => [
         ...paramSpecificHooks
       };
       const [shouldMatch, exec] = params[i];
-      if (typeCheck("Function", shouldMatch) && shouldMatch(arg)) {
+      if (
+        typeCheck("Function", shouldMatch) &&
+        shouldMatch(arg, { ...hooks })
+      ) {
         return exec(e, { ...hooks });
       } else if (
         typeCheck("String", shouldMatch) &&

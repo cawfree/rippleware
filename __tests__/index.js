@@ -887,13 +887,36 @@ it("should be capable of broadcasting input data across conditionals", async () 
         [
           "String",
           compose().all(
-            e => e,
+            e => {
+              return e;
+            },
             e => e
           )
         ]
       ])
     )
     .sep();
-
   expect(await app("hi")).toEqual(["hi", "hi"]);
+});
+
+it("should be possible to inspect state from a matcher function", async () => {
+  const app = compose(buildStore)
+    .use([
+      [
+        (_, { useGlobal }) =>
+          useGlobal()
+            .getState()
+            .get("cnt") === 0,
+        e => true
+      ],
+      ["*", noop()]
+    ])
+    .use((_, { useGlobal }) => {
+      const { dispatch } = useGlobal();
+      dispatch(increment());
+      return _;
+    });
+
+  expect(await app(3)).toEqual([true]);
+  expect(await app(3)).toEqual([3]);
 });
