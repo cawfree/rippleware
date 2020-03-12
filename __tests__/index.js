@@ -577,7 +577,7 @@ it("should appropriately split meta", async () => {
       useMeta("Hello!");
       return input;
     })
-    .sep([[/$.*.hi/], [/$.*.bye/]])
+    .all([[/$.*.hi/], [/$.*.bye/]])
     .use(
       (i, { useMeta }) => useMeta(),
       (i, { useMeta }) => useMeta()
@@ -882,7 +882,7 @@ it("should be possible to define the context of execution for a rippleware", asy
 
 it("should be capable of broadcasting input data across conditionals", async () => {
   const app = compose()
-    .use(
+    .all(
       compose().use([
         [
           "String",
@@ -894,8 +894,7 @@ it("should be capable of broadcasting input data across conditionals", async () 
           )
         ]
       ])
-    )
-    .sep();
+    );
   expect(await app("hi")).toEqual(["hi", "hi"]);
 });
 
