@@ -706,7 +706,7 @@ it("should be possible to insert into an array of rippleware", async () => {
 });
 
 it("should permit conditional execution of a composable instance", async () => {
-  const app = compose().use([
+  const app = compose().all([
     ["String", compose().use(() => "It is a string!")],
     ["*", () => "Not a string!"]
   ]);
@@ -719,7 +719,7 @@ it("should permit conditional execution of a composable instance", async () => {
       useMeta(3);
       return undefined;
     })
-    .use([
+    .all([
       [
         "*",
         compose().use((_, { useMeta }) => {
@@ -737,7 +737,7 @@ it("should permit conditional execution of a composable instance", async () => {
       useMeta([2, 1]);
       return undefined;
     })
-    .use([
+    .all([
       [
         "*",
         compose().use((_, { useMeta }) => {
@@ -922,54 +922,62 @@ it("should be possible to inspect state from a matcher function", async () => {
 });
 
 it("should be possible to execute middleware against a matcher function", async () => {
-  const app = compose().use([[() => true, compose().use(b => !b)]]);
-
+  const app = compose().all([[() => true, compose().use(b => !b)]]);
   expect(await app(false)).toEqual([true]);
 });
 
 it("should be possible to propagate channel information from nested rippleware", async () => {
-  const app = compose()
-    .use(
-      compose()
-        .all(e => e, e => e),
-    )
-    .use(
-      e => e + 1,
-      e => e + 1,
-    );
+  const app = compose().use([
+    ["String", e => "String!"],
+    ["*", () => "Not String!"]
+  ]);
 
-  expect(await app(5)).toEqual([ 6, 6 ]);
+  expect(await app("hi")).toEqual(["String!"]);
+  expect(await app(0)).toEqual(["Not String!"]);
 
   const app2 = compose()
     .use(
-      compose()
-        .use(
-          compose()
-            .all(e => e, e => e),
-        ),
+      compose().all(
+        e => e,
+        e => e
+      )
     )
     .use(
       e => e + 1,
-      e => e + 1,
+      e => e + 1
     );
 
-  expect(await app2(5)).toEqual([ 6, 6 ]);
+  expect(await app2(5)).toEqual([6, 6]);
+
+  const app3 = compose().all([
+    [
+      "String",
+      compose().all(
+        e => e,
+        e => e
+      )
+    ]
+  ]);
+
+  expect(await app3("Hi!")).toEqual(["Hi!", "Hi!"]);
 
   const app4 = compose()
+    .all(
+      compose().use(
+        compose().all(
+          e => e,
+          e => e
+        )
+      )
+    )
     .use(
-      [
-        ['Number', compose()
-          .all(e => e, e => e)],
-      ],
+      e => e + 1,
+      e => e + 1
     );
 
-  console.log(await app4(5));
+  expect(await app4(5)).toEqual([6, 6]);
 
-  const app5 = compose()
-    .use(
-      compose()
-        .all(e => e, e => e),
-    );
+  const app5 = compose().use([["String", () => [1, 2]]]);
 
-  console.log(await app5(5));
+  expect(await app5("Hi!")).toEqual([[1, 2]]);
 });

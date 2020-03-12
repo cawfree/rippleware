@@ -49,71 +49,17 @@ const isMatcherDeclaration = e => typeCheck("[(Function|String,Function)]", e);
 const isAggregateIndexDeclaration = e =>
   typeCheck("[[RegExp{source:String}]]", e);
 
-const matchedExec = (exec, hooks, meta, e) => {
-  if (isSingleRippleware([exec])) {
-    return executeNestedRippleware(exec, { ...hooks }, meta, e).then(
-      ([results, metas]) => {
-        const { useMeta } = hooks;
-        if (results.length === 1) {
-          useMeta(transforms.first()(metas));
-          return transforms.first()(results);
-        }
-        useMeta(transforms.sep()(metas));
-        return transforms.sep()(results);
-      }
-    );
-  }
-  return exec(e, { ...hooks });
-};
-
-const match = (params, arg, meta) => [
-  // XXX: Prevent direct propagation of useState and useEffect into the conditional routes,
-  //      as conditional execution will have an impact on execution order.
-  (e, { useState, ...extraHooks }) => {
-    // TODO: Lazy-loaded hooks would be better.
-    const [[...conditionalHooks]] = useState(() =>
-      params.map(() => createHooks())
-    );
-    for (let i = 0; i < params.length; i += 1) {
-      const [paramSpecificHooks, resetParamSpecificHooks] = conditionalHooks[i];
-      resetParamSpecificHooks();
-      const { ...hooks } = {
-        ...extraHooks,
-        ...paramSpecificHooks
-      };
-      const [shouldMatch, exec] = params[i];
-      if (
-        typeCheck("Function", shouldMatch) &&
-        shouldMatch(arg, { ...hooks })
-      ) {
-        return matchedExec(exec, { ...hooks }, meta, e);
-      } else if (
-        typeCheck("String", shouldMatch) &&
-        typeCheck(shouldMatch, arg)
-      ) {
-        return matchedExec(exec, { ...hooks }, meta, e);
-      }
-    }
-    throw new Error(`Unable to find a valid matcher for ${arg}.`);
-  },
+const aggregate = (params, arg, meta, secret) => [
+  dataIn => params.map(p => p.map(q => expression(q, dataIn))),
   arg,
-  meta
+  secret === secrets.sep ? params.map(() => meta) : meta
 ];
-
-const aggregate = (params, arg, meta, secret) => {
-  return [
-    dataIn => params.map(p => p.map(q => expression(q, dataIn))),
-    arg,
-    secret === secrets.sep ? params.map(() => meta) : meta
-  ];
-};
 
 const shouldIndex = (param, arg, meta, secret) => {
   if (Array.isArray(param)) {
     if (isNestedArray(param)) {
-      // XXX: Effectively, isConditional.
       if (isMatcherDeclaration(param)) {
-        return match(param, arg, meta);
+        return [param, arg, meta];
       } else if (isAggregateIndexDeclaration(param)) {
         return aggregate(param, arg, meta, secret);
       }
@@ -197,6 +143,41 @@ const execute = (param, arg, meta, { ...hooks }) => {
   return Promise.resolve().then(() => {
     if (isRippleware(param)) {
       return executeNestedRippleware(param, hooks, meta, ...arg);
+    } else if (isMatcherDeclaration(param)) {
+      const { useState } = hooks;
+      const params = param;
+      const [[...conditionalHooks]] = useState(() =>
+        params.map(() => createHooks())
+      );
+      for (let i = 0; i < params.length; i += 1) {
+        const [paramSpecificHooks, resetParamSpecificHooks] = conditionalHooks[
+          i
+        ];
+        resetParamSpecificHooks();
+        const { ...extraHooks } = {
+          ...hooks,
+          ...paramSpecificHooks
+        };
+        const [shouldMatch, exec] = params[i];
+        if (
+          typeCheck("Function", shouldMatch) &&
+          shouldMatch(arg, { ...extraHooks })
+        ) {
+          if (isRippleware(exec)) {
+            return execute(exec, [arg], meta, extraHooks);
+          }
+          return execute(exec, arg, meta, extraHooks);
+        } else if (
+          typeCheck("String", shouldMatch) &&
+          typeCheck(shouldMatch, arg)
+        ) {
+          if (isRippleware(exec)) {
+            return execute(exec, [arg], meta, extraHooks);
+          }
+          return execute(exec, arg, meta, extraHooks);
+        }
+      }
+      throw new Error(`Unable to find a valid matcher for ${arg}.`);
     } else if (Array.isArray(param)) {
       return Promise.all(
         param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks }))
