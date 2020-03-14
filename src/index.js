@@ -571,8 +571,7 @@ export const justOnce = (...args) => (input, { useState, useGlobal }) => {
   const [didExecute, setDidExecute] = useState(false);
   if (!didExecute) {
     setDidExecute(true);
-    return app(input)
-      .then(transforms.first());
+    return app(input).then(transforms.first());
   }
   return Promise.resolve(input);
 };
