@@ -374,34 +374,6 @@ const app = compose()
 await app(true, false); // [false, true]
 ```
 
-## 🎒 Builtins
-
-### `justOnce`
-Executes the wrapped middleware on the first execution and will propagate the input signals unmodified for all future passes.
-
-```javascript
-import compose, { justOnce } from 'rippleware';
-
-const app = compose()
-  .use(justOnce(input => !input));
-
-console.log(await app(true)); // false
-console.log(await app(true)); // true
-console.log(await app(true)); // true
-```
-
-### `noop`
-A middleware stage which simply propagates input data, alongside meta, unchanged. Useful for skipping regions of processing for indexed steps of execution.
-
-```javascript
-import compose, { noop } from 'rippleware';
-
-const app = compose()
-  .use(i => i + 1, noop());
-
-app([0, 0]); // [1, 0]
-```
-
 ## 😎 Contributing
 
 This is an active project, and your contributes are welcome! Before submitting any [Pull Requests](https://github.com/cawfree/rippleware/pulls), please ensure all existing unit tests pass with a call to `yarn jest`.

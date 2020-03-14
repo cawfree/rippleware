@@ -4,7 +4,7 @@ import { typeCheck } from "type-check";
 import { Map } from "immutable";
 import { createStore } from "redux";
 
-import compose, { isRippleware, justOnce, noop, pre } from "../src";
+import compose, { isRippleware, noop, pre } from "../src";
 
 const addOne = () => input => input + 1;
 
@@ -317,27 +317,6 @@ it("should be possible to determine the topology of execution using useTopology"
   );
 
   expect(await app2()).toEqual([[2, 3]]);
-});
-
-it("should be possible to execute some middleware only once", async () => {
-  const app = compose().use(justOnce(i => !i));
-
-  expect(await app(true)).toEqual([false]);
-  expect(await app(true)).toEqual([true]);
-  expect(await app(false)).toEqual([false]);
-
-  const app2 = compose().use(compose().use(justOnce(i => !i)));
-
-  expect(await app2(true)).toEqual([false]);
-  expect(await app2(true)).toEqual([true]);
-  expect(await app2(false)).toEqual([false]);
-
-  const app3 = compose()
-    .use((_, { useMeta }) => useMeta(4))
-    .use(compose().use(justOnce(() => null)))
-    .use((_, { useMeta }) => useMeta());
-
-  expect(await app3(null)).toEqual([4]);
 });
 
 it("should be possible to define skipped channels of computation", async () => {

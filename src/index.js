@@ -545,7 +545,6 @@ const compose = (...args) => {
   r.all = (...args) => {
     params.push([
       args,
-      // ici?
       args.length === 1 ? transforms.sep() : transforms.identity(),
       secrets.all
     ]);
@@ -564,16 +563,6 @@ const compose = (...args) => {
     return r;
   };
   return r;
-};
-
-export const justOnce = (...args) => (input, { useState, useGlobal }) => {
-  const [app] = useState(() => compose().all(...args));
-  const [didExecute, setDidExecute] = useState(false);
-  if (!didExecute) {
-    setDidExecute(true);
-    return app(input).then(transforms.first());
-  }
-  return Promise.resolve(input);
 };
 
 export const noop = () => input => input;
