@@ -147,7 +147,9 @@ const execute = (param, arg, meta, secret, { ...hooks }) => {
       const { useState } = hooks;
       const [moized, setMoized] = useState(undefined);
       if (moized !== undefined) {
-        return Promise.resolve(moized);
+        return Promise.resolve(moized)
+          // XXX: Meta is permitted to propgate. (Additional meta is discarded.)
+          .then(([result]) => [result, meta]);
       }
       // TODO: Enforce the prevention of calls to useState / useEffect.
       return executeNestedRippleware(param, hooks, meta, ...arg)
