@@ -22,7 +22,8 @@ const secrets = Object.freeze({
   all: nanoid(),
   //sep: nanoid(),
   export: nanoid(),
-  ctx: nanoid()
+  ctx: nanoid(),
+  moi: nanoid(),
 });
 
 const isSingleRippleware = ([r, ...extras]) =>
@@ -106,14 +107,14 @@ const ensureIndexed = ([...params], [...args], [...metas], secret) => {
     nextArgs.push(isRippleware(param) ? [nextArg] : nextArg);
     nextMetas.push(isRippleware(param) ? [nextMeta] : nextMeta);
   }
-  return [nextParams, nextArgs, nextMetas, transforms.identity()];
+  return [nextParams, nextArgs, nextMetas, secret, transforms.identity()];
 };
 
 const propagate = ([...params], [...args], [...metas], secret) => {
   if (isSingleRippleware(params)) {
     const [r] = params;
     const [m] = metas;
-    return [[r], [args], [m], transforms.first()];
+    return [[r], [args], [m], secret, transforms.first()];
   } else if (params.length === args.length) {
     return ensureIndexed(params, args, metas, secret);
   } else if (params.length > args.length) {
@@ -140,10 +141,22 @@ const executeNestedRippleware = (app, hooks, meta, ...args) => {
   return app(secrets.internal, opts, ...args);
 };
 
-const execute = (param, arg, meta, { ...hooks }) => {
+const execute = (param, arg, meta, secret, { ...hooks }) => {
   return Promise.resolve().then(() => {
     if (isRippleware(param)) {
-      return executeNestedRippleware(param, hooks, meta, ...arg);
+      const { useState } = hooks;
+      const [moized, setMoized] = useState(undefined);
+      if (moized !== undefined) {
+        return Promise.resolve(moized);
+      }
+      // TODO: Enforce the prevention of calls to useState / useEffect.
+      return executeNestedRippleware(param, hooks, meta, ...arg)
+        .then(
+          (e) => {
+            (secret === secrets.moi) && setMoized(e);
+            return e;
+          },
+        );
     } else if (isMatcherDeclaration(param)) {
       const { useState } = hooks;
       const params = param;
@@ -166,23 +179,23 @@ const execute = (param, arg, meta, { ...hooks }) => {
           shouldMatch(arg, { ...extraHooks, useMeta: () => meta})
         ) {
           if (isRippleware(exec)) {
-            return execute(exec, [arg], meta, extraHooks);
+            return execute(exec, [arg], meta, secret, extraHooks);
           }
-          return execute(exec, arg, meta, extraHooks);
+          return execute(exec, arg, meta, secret, extraHooks);
         } else if (
           typeCheck("String", shouldMatch) &&
           typeCheck(shouldMatch, arg)
         ) {
           if (isRippleware(exec)) {
-            return execute(exec, [arg], meta, extraHooks);
+            return execute(exec, [arg], meta, secret, extraHooks);
           }
-          return execute(exec, arg, meta, extraHooks);
+          return execute(exec, arg, meta, secret, extraHooks);
         }
       }
       throw new Error(`Unable to find a valid matcher for ${arg}.`);
     } else if (Array.isArray(param)) {
       return Promise.all(
-        param.map((p, i) => execute(p, arg[i], meta[i], { ...hooks }))
+        param.map((p, i) => execute(p, arg[i], meta[i], secret, { ...hooks }))
       ).then(results => [
         results.map(([data]) => data),
         results.map(([_, meta]) => meta)
@@ -219,13 +232,14 @@ const executeStage = (
   [...params],
   [...args],
   [...metas],
+  secret,
   { ...hooks }
 ) =>
   Promise.resolve()
     .then(() =>
       Promise.all(
         params.map((param, i) => {
-          return execute(param, args[i], metas[i], { ...hooks }).then(
+          return execute(param, args[i], metas[i], secret, { ...hooks }).then(
             ([result, meta]) => {
               if (!isSingleRippleware(params) && isRippleware(param)) {
                 return [transforms.first()(result), transforms.first()(meta)];
@@ -284,7 +298,7 @@ const executeParams = ({ ...hooks }, [...params], [...args], [...metas]) =>
     (p, [stageId, [...params], globalTransform, secret], i, orig) =>
       p.then(([[...dataFromLastStage], [...metasFromLastStage]]) => {
         const { length } = orig;
-        const [nextParams, nextArgs, nextMetas, nextTransform] = propagate(
+        const [nextParams, nextArgs, nextMetas, nextSecret, nextTransform] = propagate(
           ...prepareChannel(
             params,
             dataFromLastStage,
@@ -299,6 +313,7 @@ const executeParams = ({ ...hooks }, [...params], [...args], [...metas]) =>
           [...nextParams],
           [...nextArgs],
           [...nextMetas],
+          nextSecret,
           {
             ...hooks,
             useTopology: () => topology
@@ -550,6 +565,19 @@ const compose = (...args) => {
       secrets.all
     ]);
     return r;
+  };
+  // TODO: It should not be possible for the nested call to use unsafe hooks.
+  //       (Since it is effectively a conditional block.)
+  r.moi = (...args) => {
+    if (isSingleRippleware(args)) {
+      params.push([
+        args,
+        transforms.identity(),
+        secrets.moi,
+      ]);
+      return r;
+    }
+    throw new Error("It is only possible to moize a single rippleware.");
   };
   r.ctx = (...args) => {
     if (args.length !== 1) {
