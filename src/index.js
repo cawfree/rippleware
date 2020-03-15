@@ -23,7 +23,6 @@ const secrets = Object.freeze({
   //sep: nanoid(),
   export: nanoid(),
   ctx: nanoid(),
-  moi: nanoid(),
 });
 
 const isSingleRippleware = ([r, ...extras]) =>
@@ -145,20 +144,8 @@ const execute = (param, arg, meta, secret, { ...hooks }) => {
   return Promise.resolve().then(() => {
     if (isRippleware(param)) {
       const { useState } = hooks;
-      const [moized, setMoized] = useState(undefined);
-      if (moized !== undefined) {
-        return Promise.resolve(moized)
-          // XXX: Meta is permitted to propgate. (Additional meta is discarded.)
-          .then(([result]) => [result, meta]);
-      }
       // TODO: Enforce the prevention of calls to useState / useEffect.
-      return executeNestedRippleware(param, hooks, meta, ...arg)
-        .then(
-          (e) => {
-            (secret === secrets.moi) && setMoized(e);
-            return e;
-          },
-        );
+      return executeNestedRippleware(param, hooks, meta, ...arg);
     } else if (isMatcherDeclaration(param)) {
       const { useState } = hooks;
       const params = param;
@@ -567,19 +554,6 @@ const compose = (...args) => {
       secrets.all
     ]);
     return r;
-  };
-  // TODO: It should not be possible for the nested call to use unsafe hooks.
-  //       (Since it is effectively a conditional block.)
-  r.moi = (...args) => {
-    if (isSingleRippleware(args)) {
-      params.push([
-        args,
-        transforms.identity(),
-        secrets.moi,
-      ]);
-      return r;
-    }
-    throw new Error("It is only possible to moize a single rippleware.");
   };
   r.ctx = (...args) => {
     if (args.length !== 1) {

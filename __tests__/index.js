@@ -961,14 +961,3 @@ it("should be possible to propagate channel information from nested rippleware",
 
   expect(await app5("Hi!")).toEqual([[1, 2]]);
 });
-
-it("should be possible to moize the execution of a rippleware", async () => {
-  expect(() => compose().moi(() => false)).toThrow();
-  expect(compose().moi(compose().use(() => false))).toBeTruthy();
-
-  const app = compose()
-    .moi(compose().use(b => !b));
-
-  expect(await app(true)).toEqual([false]);
-  expect(await app(false)).toEqual([false]);
-});
