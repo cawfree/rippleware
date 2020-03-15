@@ -162,7 +162,8 @@ const execute = (param, arg, meta, { ...hooks }) => {
         const [shouldMatch, exec] = params[i];
         if (
           typeCheck("Function", shouldMatch) &&
-          shouldMatch(arg, { ...extraHooks })
+          // XXX: Provide a read-only version of useMeta.
+          shouldMatch(arg, { ...extraHooks, useMeta: () => meta})
         ) {
           if (isRippleware(exec)) {
             return execute(exec, [arg], meta, extraHooks);
