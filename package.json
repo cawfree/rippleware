@@ -38,7 +38,7 @@
   "dependencies": {
     "deep-equal": "^2.0.1",
     "jsonpath": "^1.0.2",
-    "nanoid": "^2.1.11",
+    "nanoid": "^3.1.31",
     "type-check": "^0.3.2"
   }
 }
